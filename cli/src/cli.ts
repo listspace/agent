@@ -39,12 +39,12 @@ export interface Io {
   readonly configDir?: string
 }
 
-export const HELP = `listspace ${VERSION}: ListSpace from the command line, for people and coding agents.
+export const HELP = `listspace ${VERSION}: Listspace from the command line, for people and coding agents.
 
 Usage: listspace <command> [arguments] [--json]
 
 Sign in
-  login [--token ls_...]    Save a personal token (ListSpace: Settings > API).
+  login [--token ls_...]    Save a personal token (Listspace: Settings > API).
                             Without --token it reads the token from stdin.
   logout                    Forget the saved token.
   whoami                    Plan, freedom levels, guidance and boards (alias: account).
@@ -172,7 +172,7 @@ async function clientFor(io: Io, dir: string): Promise<ApiClient> {
     case 'none':
       return fail({ kind: 'auth', message: `Not signed in. ${LOGIN_HINT}` })
     case 'invalid':
-      return fail({ kind: 'auth', message: `The token in ${source.where} is not a ListSpace token (ls_ and 43 characters). ${LOGIN_HINT}` })
+      return fail({ kind: 'auth', message: `The token in ${source.where} is not a Listspace token (ls_ and 43 characters). ${LOGIN_HINT}` })
     default: {
       const exhaustive: never = source
       return exhaustive
@@ -196,7 +196,7 @@ type LoginMethod = { readonly kind: 'token'; readonly raw: string } | { readonly
 
 async function loginMethod(flags: Flags, io: Io): Promise<LoginMethod> {
   if (flags.token !== undefined) return { kind: 'token', raw: flags.token }
-  const typed = await io.readSecret('Paste a personal token from ListSpace (Settings > API): ')
+  const typed = await io.readSecret('Paste a personal token from Listspace (Settings > API): ')
   if (typed === null || typed.trim() === '') return { kind: 'pairing' }
   return { kind: 'token', raw: typed }
 }
@@ -207,7 +207,7 @@ async function login(flags: Flags, io: Io, dir: string): Promise<Output> {
     return usage('No token given. Pass --token ls_... or pipe one in (signing in from the browser comes later).')
   }
   const token: ApiToken | null = parseToken(method.raw)
-  if (token === null) return usage('That is not a ListSpace token: it starts with ls_ and has 43 more characters.')
+  if (token === null) return usage('That is not a Listspace token: it starts with ls_ and has 43 more characters.')
   // Check the token before saving it, so a typo never replaces a working one
   const client = new ApiClient({ baseUrl: apiUrl(io.env), token, fetch: io.fetch })
   const answer = await client.data('GET', '/account', account)

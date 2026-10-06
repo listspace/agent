@@ -1,7 +1,7 @@
 {
   "name": "listspace",
   "version": "0.1.0",
-  "description": "ListSpace from the command line: the agentic project memory, for people and coding agents.",
+  "description": "Listspace from the command line: the agentic project memory, for people and coding agents.",
   "keywords": [
     "listspace",
     "cli",

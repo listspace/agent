@@ -70,5 +70,5 @@ test('errorFor: 401 points at login, 429 reads Retry-After, 403 scope explains r
   assert.match(scope.message, /read only/)
 
   const odd = errorFor(new Response(null, { status: 502 }), '<html>')
-  assert.deepEqual(odd, { kind: 'api', status: 502, code: 'unknown', message: 'ListSpace answered 502.' })
+  assert.deepEqual(odd, { kind: 'api', status: 502, code: 'unknown', message: 'Listspace answered 502.' })
 })

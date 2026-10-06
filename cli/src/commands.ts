@@ -179,7 +179,7 @@ export function moveCommand(client: ApiClient, input: { item: string; list: stri
   return moveTo(client, input.item, (board) => resolveList(board, input.list), input.choice)
 }
 
-/** Done means: moved to the board's done list (the "done" tick in ListSpace is for due dates). */
+/** Done means: moved to the board's done list (the "done" tick in Listspace is for due dates). */
 export function doneCommand(client: ApiClient, input: { item: string; choice: InboxChoice }): Promise<Output> {
   return moveTo(
     client,

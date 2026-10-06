@@ -40,7 +40,7 @@ export const fail = (error: CliError): never => {
   throw new CliFailure(error)
 }
 
-export const LOGIN_HINT = 'Run `listspace login` with a personal token (ListSpace: Settings > API), or set LISTSPACE_TOKEN.'
+export const LOGIN_HINT = 'Run `listspace login` with a personal token (Listspace: Settings > API), or set LISTSPACE_TOKEN.'
 
 export interface ApiClientOptions {
   readonly baseUrl: string
@@ -64,7 +64,7 @@ export class ApiClient {
   /** Sends one request and decodes `data` from the answer. */
   async data<T>(method: Method, path: string, decoder: Decoder<T>, init: { query?: Query; body?: unknown } = {}): Promise<Answer<T>> {
     const json = await this.send(method, path, init)
-    if (!isRecord(json) || !('data' in json)) return fail({ kind: 'unexpected', message: 'Unexpected response from ListSpace: no data.' })
+    if (!isRecord(json) || !('data' in json)) return fail({ kind: 'unexpected', message: 'Unexpected response from Listspace: no data.' })
     return { value: decodeOrFail(decoder, json.data, 'data'), raw: json.data }
   }
 
@@ -94,7 +94,7 @@ export class ApiClient {
       )
     } catch (cause) {
       const reason = cause instanceof Error ? cause.message : String(cause)
-      return fail({ kind: 'network', message: `Could not reach ListSpace at ${url.origin}: ${reason}` })
+      return fail({ kind: 'network', message: `Could not reach Listspace at ${url.origin}: ${reason}` })
     }
 
     const text = await response.text()
@@ -103,7 +103,7 @@ export class ApiClient {
       try {
         json = JSON.parse(text)
       } catch {
-        if (response.ok) return fail({ kind: 'unexpected', message: `ListSpace answered ${response.status} with something that is not JSON.` })
+        if (response.ok) return fail({ kind: 'unexpected', message: `Listspace answered ${response.status} with something that is not JSON.` })
       }
     }
     if (response.ok) return json
@@ -123,7 +123,7 @@ function decodeOrFail<T>(decoder: Decoder<T>, value: unknown, path: string): T {
 /** Turns a failed answer into a CliError with the server's message and a next step. */
 export function errorFor(response: Response, json: unknown): CliError {
   let code = 'unknown'
-  let message = `ListSpace answered ${response.status}.`
+  let message = `Listspace answered ${response.status}.`
   try {
     const parsed = errorBody(json, 'body')
     code = parsed.error.code

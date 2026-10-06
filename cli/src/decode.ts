@@ -4,7 +4,7 @@
 
 export class DecodeError extends Error {
   constructor(readonly path: string, readonly expected: string) {
-    super(`Unexpected response from ListSpace: ${path} should be ${expected}.`)
+    super(`Unexpected response from Listspace: ${path} should be ${expected}.`)
     this.name = 'DecodeError'
   }
 }

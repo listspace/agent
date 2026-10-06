@@ -1,4 +1,4 @@
-// A fake ListSpace API for the tests: answers by "METHOD /path" and records
+// A fake Listspace API for the tests: answers by "METHOD /path" and records
 // every request, so tests check both what the CLI sent and what it printed.
 
 import { mkdtemp } from 'node:fs/promises'

@@ -1,4 +1,4 @@
-// The parts of the ListSpace REST API responses (docs/API.md) the CLI reads.
+// The parts of the Listspace REST API responses (docs/API.md) the CLI reads.
 // Each decoder checks only the fields used here; --json prints the server's
 // full answer, so nothing is lost for agents.
 

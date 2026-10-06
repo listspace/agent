@@ -1,16 +1,16 @@
 ---
 name: listspace
-description: Project memory for coding agents in ListSpace boards. Use when the user works on a project that has a ListSpace board, asks you to remember, track or plan work, capture ideas or bugs, pick up where the last session stopped, work through a board's items on its own, or mentions ListSpace. Covers the session start, where items go, freedom levels and the Inbox, claiming items, through the ListSpace MCP tools or the listspace CLI.
+description: Project memory for coding agents in Listspace boards. Use when the user works on a project that has a Listspace board, asks you to remember, track or plan work, capture ideas or bugs, pick up where the last session stopped, work through a board's items on its own, or mentions Listspace. Covers the session start, where items go, freedom levels and the Inbox, claiming items, through the Listspace MCP tools or the listspace CLI.
 metadata:
   author: Yellow House Digital
   version: "0.1.0"
 ---
 
-# ListSpace: project memory
+# Listspace: project memory
 
-ListSpace keeps a project's memory on a board: what it is, decisions, ideas, bugs, the plan and what is in progress. The user reads and steers the same board in the app.
+Listspace keeps a project's memory on a board: what it is, decisions, ideas, bugs, the plan and what is in progress. The user reads and steers the same board in the app.
 
-Use the ListSpace MCP tools when they are connected (`start_session`, `create_item`, ...). Otherwise use the `listspace` CLI with `--json` (see [reference/cli.md](reference/cli.md)). Tool details: [reference/tools.md](reference/tools.md).
+Use the Listspace MCP tools when they are connected (`start_session`, `create_item`, ...). Otherwise use the `listspace` CLI with `--json` (see [reference/cli.md](reference/cli.md)). Tool details: [reference/tools.md](reference/tools.md).
 
 ## Start of every session
 
@@ -19,7 +19,9 @@ Use the ListSpace MCP tools when they are connected (`start_session`, `create_it
 3. Note the `level` (1 to 5) and `allowed`: for each action, `direct` (it happens), `inbox` (it waits in the Inbox) or `no` (refused). Check `allowed` before a write instead of guessing.
 4. Pick up from `work` (Doing first), `captured` and `due_soon`.
 
-No board for this project yet? Ask once: "Shall I create a ListSpace board for this project?" On yes, call `create_board` with the project name and no template (it uses "Project (for agents)": Project info, Ideas, Bugs, Roadmap, To do, Doing, Done). Tell the user the board id to put in AGENTS.md.
+No board for this project yet? Ask once: "Shall I create a Listspace board for this project?" On yes, call `create_board` with the project name and no template (it uses "Project (for agents)": Project info, Docs, Ideas, Bugs, Roadmap, To do, Doing, Done). Tell the user the board id to put in AGENTS.md.
+
+Is this board shared or public? Keep internal details (servers, client names, credentials-adjacent notes) on a separate private board, for example "<Project> Ops". A private board can hold everything in one place. The "Ops (private)" template (`list_templates`) has the lists for it: Workflow, Servers & services, Decisions, Agent rules (all info), To do, Doing, Done.
 
 ## During work
 

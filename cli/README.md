@@ -1,6 +1,6 @@
 # listspace
 
-The command line for [ListSpace](https://listspace.app), the project board your AI agents keep up to date. People and coding agents use it to read boards, add and move items, work through a board on their own, and undo their own changes. It talks to the ListSpace REST API (`https://api.listspace.app/v1`).
+The command line for [Listspace](https://listspace.app), the project board your AI agents keep up to date. People and coding agents use it to read boards, add and move items, work through a board on their own, and undo their own changes. It talks to the Listspace REST API (`https://api.listspace.app/v1`).
 
 Node 20 or later. No runtime dependencies.
 
@@ -20,7 +20,7 @@ npm install -g listspace
 
 ## Sign in
 
-Create a personal token in ListSpace under **Settings > API**, then save it:
+Create a personal token in Listspace under **Settings > API**, then save it:
 
 ```bash
 npx listspace login --token ls_...
@@ -38,7 +38,7 @@ The token is saved as `credentials.json` (mode 600) in your OS config directory:
 
 ```text
 Sign in
-  login [--token ls_...]    Save a personal token (ListSpace: Settings > API).
+  login [--token ls_...]    Save a personal token (Listspace: Settings > API).
   logout                    Forget the saved token.
   whoami                    Plan, freedom levels, guidance and boards (alias: account).
 

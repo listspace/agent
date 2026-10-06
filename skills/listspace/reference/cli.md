@@ -4,7 +4,7 @@ Use it when the MCP tools are not connected. Always pass `--json` and read the J
 
 ## Sign in
 
-The user runs `npx listspace login` once and pastes a token from ListSpace (Settings > API), or sets `LISTSPACE_TOKEN`. Never ask the user to paste a token into the chat, and never write one into a file in the project.
+The user runs `npx listspace login` once and pastes a token from Listspace (Settings > API), or sets `LISTSPACE_TOKEN`. Never ask the user to paste a token into the chat, and never write one into a file in the project.
 
 ## Commands
 

@@ -46,4 +46,4 @@ Give the user a short summary:
 
 ## Waking an agent
 
-A webhook (ListSpace calls a URL when an item is created, moved, updated or completed, a suggestion is made or decided, or a comment is added) or a schedule (cron, a scheduled routine) can start an agent that runs this loop. Webhooks are set up by the user in the app (Settings > Agents > Webhooks); agents never create, see or change them. How to wire one up: [What agents can do](https://listspace.app/docs/agents)
+A webhook (Listspace calls a URL when an item is created, moved, updated or completed, a suggestion is made or decided, or a comment is added) or a schedule (cron, a scheduled routine) can start an agent that runs this loop. Webhooks are set up by the user in the app (Settings > Agents > Webhooks); agents never create, see or change them. How to wire one up: [What agents can do](https://listspace.app/docs/agents)
