@@ -1,6 +1,6 @@
 {
   "name": "listspace",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Listspace from the command line: the agentic project memory, for people and coding agents.",
   "keywords": [
     "listspace",
@@ -32,6 +32,7 @@
   "files": [
     "dist/listspace.mjs",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "engines": {
@@ -45,7 +46,7 @@
   },
   "devDependencies": {
     "@types/node": "20.19.43",
-    "esbuild": "0.25.5",
+    "esbuild": "0.28.2",
     "typescript": "5.8.3"
   }
 }

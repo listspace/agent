@@ -3,7 +3,7 @@ name: listspace
 description: Project memory for coding agents in Listspace boards. Use when the user works on a project that has a Listspace board, asks you to remember, track or plan work, capture ideas or bugs, pick up where the last session stopped, work through a board's items on its own, or mentions Listspace. Covers the session start, where items go, freedom levels and the Inbox, claiming items, through the Listspace MCP tools or the listspace CLI.
 metadata:
   author: Yellow House Digital
-  version: "0.1.0"
+  version: "0.1.1"
 ---
 
 # Listspace: project memory
