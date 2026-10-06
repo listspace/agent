@@ -30,7 +30,7 @@ Then run `/mcp`, choose `listspace` and sign in with your ListSpace account.
 
 **Only the MCP server**, without the skill: see [listspace.app/docs/mcp](https://listspace.app/docs/mcp) for Claude, ChatGPT, Claude Code, Codex and Cursor.
 
-**The CLI**: coming to npm as `listspace`. Until then, build it from `cli/` (Node 20 or later).
+**The CLI** (Node 20 or later): `npx listspace login`, then `npx listspace boards`. See [cli/README.md](cli/README.md).
 
 ## What agents can do
 

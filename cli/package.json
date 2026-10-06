@@ -1,23 +1,47 @@
 {
   "name": "listspace",
   "version": "0.1.0",
-  "private": true,
   "description": "ListSpace from the command line: the agentic project memory, for people and coding agents.",
+  "keywords": [
+    "listspace",
+    "cli",
+    "ai-agents",
+    "project-memory",
+    "kanban",
+    "boards",
+    "mcp",
+    "claude",
+    "codex",
+    "cursor"
+  ],
+  "homepage": "https://listspace.app/docs/agents",
+  "bugs": {
+    "url": "https://github.com/listspace/agent/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/listspace/agent.git",
+    "directory": "cli"
+  },
+  "license": "MIT",
+  "author": "Sjenkie B.V. (Yellow House Digital)",
   "type": "module",
   "bin": {
     "listspace": "dist/listspace.mjs"
   },
   "files": [
-    "dist"
+    "dist/listspace.mjs",
+    "README.md",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=20"
   },
-  "homepage": "https://listspace.app/docs/api",
   "scripts": {
     "build": "esbuild src/main.ts --bundle --platform=node --format=esm --target=node20 --outfile=dist/listspace.mjs --banner:js=\"#!/usr/bin/env node\"",
     "typecheck": "tsc --noEmit",
-    "test": "tsc -p tsconfig.test.json && node --test build/test/api.test.js build/test/cli.test.js build/test/config.test.js build/test/commands.test.js"
+    "test": "tsc -p tsconfig.test.json && node --test build/test/api.test.js build/test/cli.test.js build/test/config.test.js build/test/commands.test.js",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "devDependencies": {
     "@types/node": "20.19.43",
