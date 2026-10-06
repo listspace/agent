@@ -1,10 +1,10 @@
 # The listspace CLI
 
-Use it when the MCP tools are not connected. Always pass `--json` and read the JSON. It calls the REST API with a personal token.
+Use it when the MCP tools are not connected. Always pass `--json` and read the JSON. It calls the REST API with a personal token. It is the `listspace` package on npm: without a global install (`npm install -g listspace`), run each command as `npx listspace ...`.
 
 ## Sign in
 
-The user runs `listspace login` once and pastes a token from ListSpace (Settings > API), or sets `LISTSPACE_TOKEN`. Never ask the user to paste a token into the chat, and never write one into a file in the project.
+The user runs `npx listspace login` once and pastes a token from ListSpace (Settings > API), or sets `LISTSPACE_TOKEN`. Never ask the user to paste a token into the chat, and never write one into a file in the project.
 
 ## Commands
 
