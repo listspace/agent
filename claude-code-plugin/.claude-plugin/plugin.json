@@ -1,0 +1,12 @@
+{
+  "name": "listspace",
+  "displayName": "ListSpace",
+  "version": "0.1.0",
+  "description": "The agentic project memory: start each session from your ListSpace board, capture ideas and bugs, move work to Doing and Done, and respect the board's freedom level.",
+  "author": {
+    "name": "Yellow House Digital",
+    "url": "https://listspace.app"
+  },
+  "homepage": "https://listspace.app/docs/mcp",
+  "keywords": ["project-memory", "boards", "mcp", "tasks"]
+}

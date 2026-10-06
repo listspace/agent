@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "listspace": {
+      "type": "http",
+      "url": "https://mcp.listspace.app"
+    }
+  }
+}

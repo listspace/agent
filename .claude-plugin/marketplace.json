@@ -1,0 +1,15 @@
+{
+  "name": "listspace",
+  "description": "ListSpace for Claude Code: the project-memory skill and the ListSpace MCP server.",
+  "owner": {
+    "name": "Yellow House Digital",
+    "url": "https://listspace.app"
+  },
+  "plugins": [
+    {
+      "name": "listspace",
+      "source": "./claude-code-plugin",
+      "description": "Project memory on a ListSpace board: the skill plus the remote MCP server."
+    }
+  ]
+}
