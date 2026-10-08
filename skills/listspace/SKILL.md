@@ -3,7 +3,7 @@ name: listspace
 description: Project memory for coding agents in Listspace boards. Use when the user works on a project that has a Listspace board, asks you to remember, track or plan work, capture ideas or bugs, pick up where the last session stopped, work through a board's items on its own, or mentions Listspace. Covers the session start, where items go, freedom levels and the Inbox, claiming items, through the Listspace MCP tools or the listspace CLI.
 metadata:
   author: Yellow House Digital
-  version: "0.1.1"
+  version: "0.2.0"
 ---
 
 # Listspace: project memory
@@ -19,26 +19,41 @@ Use the Listspace MCP tools when they are connected (`start_session`, `create_it
 3. Note the `level` (1 to 5) and `allowed`: for each action, `direct` (it happens), `inbox` (it waits in the Inbox) or `no` (refused). Check `allowed` before a write instead of guessing.
 4. Pick up from `work` (Doing first), `captured` and `due_soon`.
 
-No board for this project yet? Ask once: "Shall I create a Listspace board for this project?" On yes, call `create_board` with the project name and no template (it uses "Project (for agents)": Project info, Docs, Ideas, Bugs, Roadmap, To do, Doing, Done). Tell the user the board id to put in AGENTS.md.
+No board for this project yet? Ask once: "Shall I create a Listspace board for this project?" On yes, call `create_board` with the project name and no template (it uses "Project (for agents)": Project info, Docs, Ideas, Bugs, Roadmap, To do, Doing, Done). Tell the user the board id to put in AGENTS.md. If `get_account` lists more than one space and the user did not say which, ask which space the board goes in and pass its `space_id`; without one the board goes to the default space (`is_default`), and then tell the user where it went. For work that is not a software project (a CRM, a content calendar, a legal matter, a trip), `list_templates` shows the gallery by category; pass the one that fits as `template_id` and follow the instructions it returns.
 
 Is this board shared or public? Keep internal details (servers, client names, credentials-adjacent notes) on a separate private board, for example "<Project> Ops". A private board can hold everything in one place. The "Ops (private)" template (`list_templates`) has the lists for it: Workflow, Servers & services, Decisions, Agent rules (all info), To do, Doing, Done.
+
+## Keep the board up to date
+
+Do this while you work with the user, without being asked. It is also the default `guidance` when the user wrote none of their own (`guidance_is_default: true`).
+
+- When an idea, bug, question or decision comes up, capture it as an item. A decision gets its reason.
+- Move an item to a doing list when you start it and to a done list when it is finished, and add a short comment on what you did (`add_comment`).
+- At the end of a session, leave a short summary on the item you worked on.
+- Your freedom level decides what applies directly; when you are unsure, send the change to the Inbox.
 
 ## During work
 
 - Idea or bug found: `create_item` in the matching capture list (Ideas, Bugs). Short title; details, file paths and steps in the description (markdown).
 - Starting a task: move its item to Doing (`move_item`). New task: add it to To do first.
-- Task finished: move it to Done (`move_item` to the `done` list).
+- Task finished: move it to Done (`move_item` to the `done` list) and comment what you did.
+- Open question: an item in the matching capture list, so the user sees it on the board.
 - Decision made: an item in Project info (`info` list) saying what was decided and why.
 - Project documentation (a PRD, a spec, a schema, a decision record): keep it as a document, `create_item` with `type: "document"`, in Project info. When it changes, update that document with `update_item` and a short `version_note`; do not create a new one. Every saved change is kept as a version (`list_versions`, `get_version`, `restore_version`), so nothing is lost.
 - Work out lists by their `kind` (info, capture, backlog, todo, doing, done), not by title.
+- A file on the user's computer (a PDF, a screenshot, a spreadsheet): attach it with the CLI, `listspace attach <item> <file> --json`, which reads the file from disk and uploads it. Do not use `attach_file` with base64 you write out yourself; that breaks on real files. A file on the web: `attach_url`. Both need level 4 (Act). Details: [reference/files.md](reference/files.md).
 
 ## Working through the board on your own
 
 Asked to take items one after another, or started by a webhook or schedule: loop `next_item` (claims the top open item, moves it to Doing) -> do the work -> `add_comment` with progress -> move to Done (with `inbox: true` when `allowed.move_item_done` is `inbox`) -> `release_item` -> `next_item`. Stop when it says `empty`, the level refuses, the user says stop, or after the user's limit (else 5 items). Never work on an item another agent has claimed (`claim.yours` false). Release your claims before you stop, then summarize: done, suggested, left, blocked. Needs level 4 (Act). Steps and stop rules: [reference/autonomy.md](reference/autonomy.md).
 
+## Feedback requests
+
+Now and then `get_account` or `start_session` returns `feedback_request`: the Listspace team would like to hear from the user. At a natural pause at the end of your task, never in the middle of it, ask its `question` once, and its `quote_question` separately. Pass the user's own words to `send_feedback` (`likes`, `missing`, an optional `rating` 1 to 5, `may_quote: true` only on a clear yes). If they decline or do not answer, call `send_feedback` with `declined: true`. Never press, ask twice or write the answer for them.
+
 ## End of the session
 
-Add a short session summary where the board instructions say. Without such an instruction: one item in Project info titled `Session YYYY-MM-DD: <topic>` with what changed, what is open and the next step.
+Leave a short summary where the board instructions say. Without such an instruction: a comment (`add_comment`) on the item you worked on, with what changed, what is open and the next step. Worked on no single item? One item in Project info titled `Session YYYY-MM-DD: <topic>`.
 
 ## Freedom levels and the Inbox
 

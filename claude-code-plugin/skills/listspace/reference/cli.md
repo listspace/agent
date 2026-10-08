@@ -23,6 +23,7 @@ The user runs `npx listspace login` once and pastes a token from Listspace (Sett
 | `listspace next <board> [--kinds todo,backlog] [--label <id>] [--no-move] [--ttl <minutes>] --json` | `next_item` |
 | `listspace claim <item> [--ttl <minutes>] --json` | `claim_item` |
 | `listspace release <item> --json` | `release_item` |
+| `listspace attach <item> <file> [<file>...] --json` | `attach_file`, reading the files from disk |
 
 `next`, `claim` and `release` need level 4 (Act). `--kinds` is a comma list of list kinds in order of preference (default `todo`, then `backlog`); `--label` takes a label id and can be repeated or given as a comma list (items must have all of them); `--no-move` leaves the item in its list instead of moving it to Doing; `--ttl` is 5 to 1440 minutes (default 120). Read `outcome`: `empty` means nothing is left, `taken` means another agent holds the item, so leave it. The loop: [autonomy.md](autonomy.md).
 
@@ -40,4 +41,6 @@ Writes take `--inbox --reason "<why>"` to suggest instead of change, or `--reaso
 | 3 | Not signed in or token revoked | Ask the user to run `listspace login` |
 | 4 | Rate limited | Wait `error.retry_after_seconds`, then retry once. If the message says the Inbox is full or the hourly cap is reached, tell the user instead |
 
-Comments and attachments are not in the CLI yet. Without the MCP tools, log progress in a Project info item (`listspace add <board> info "<title>" --description "<markdown>"`) and say so in your summary.
+`attach` uploads files from this computer (at most 8 MB each; see [files.md](files.md)). It needs level 4 (Act); a file cannot wait in the Inbox.
+
+Comments are not in the CLI yet. Without the MCP tools, log progress in a Project info item (`listspace add <board> info "<title>" --description "<markdown>"`) and say so in your summary.

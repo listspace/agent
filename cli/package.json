@@ -1,6 +1,6 @@
 {
   "name": "listspace",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Listspace from the command line: the agentic project memory, for people and coding agents.",
   "keywords": [
     "listspace",
@@ -41,12 +41,12 @@
   "scripts": {
     "build": "esbuild src/main.ts --bundle --platform=node --format=esm --target=node20 --outfile=dist/listspace.mjs --banner:js=\"#!/usr/bin/env node\"",
     "typecheck": "tsc --noEmit",
-    "test": "tsc -p tsconfig.test.json && node --test build/test/api.test.js build/test/cli.test.js build/test/config.test.js build/test/commands.test.js",
+    "test": "tsc -p tsconfig.test.json && node --test build/test/api.test.js build/test/cli.test.js build/test/config.test.js build/test/commands.test.js build/test/attach.test.js",
     "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "devDependencies": {
     "@types/node": "20.19.43",
     "esbuild": "0.28.2",
-    "typescript": "5.8.3"
+    "typescript": "5.9.3"
   }
 }

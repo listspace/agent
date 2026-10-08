@@ -8,6 +8,7 @@ import {
   INBOX_STATUSES,
   accountCommand,
   addCommand,
+  attachCommand,
   boardCommand,
   boardsCommand,
   claimCommand,
@@ -17,12 +18,14 @@ import {
   newBoardCommand,
   nextCommand,
   parseClaimMinutes,
+  prepareFiles,
   releaseCommand,
   sessionCommand,
   undoCommand,
   type ClaimMinutes,
   type InboxChoice,
   type Output,
+  type ReadFile,
 } from './commands.js'
 import { configDir, loadToken, removeToken, saveToken, type Env } from './config.js'
 import { LIST_KINDS, account, type ListKind } from './schema.js'
@@ -35,6 +38,8 @@ export interface Io {
   readonly stderr: (text: string) => void
   /** Reads a token typed or piped in for `login`; null when there is none. */
   readonly readSecret: (prompt: string) => Promise<string | null>
+  /** Reads a file from disk for `attach`, checking its size first. */
+  readonly readFile: ReadFile
   /** Overrides the OS config directory (tests). */
   readonly configDir?: string
 }
@@ -63,6 +68,12 @@ Write (the board's freedom level decides what is made and what waits in the Inbo
   done <item>               Move to the board's done list.
   undo <request_id>         Take back one of your own calls.
   Writes take --inbox --reason "<why>" to suggest instead of change.
+
+Files from this computer (needs level 4, Act; a file cannot wait in the Inbox)
+  attach <item> <file> [<file>...]
+                            Upload files to an item, at most 8 MB each:
+                            images, PDF, Office files, text, Markdown, CSV,
+                            JSON, archives, audio and video.
 
 Work on your own (needs level 4, Act; other agents leave a claimed item alone)
   next <board> [--kinds todo,backlog] [--label <id>] [--no-move] [--ttl <minutes>]
@@ -281,6 +292,13 @@ async function dispatch(command: string, args: readonly string[], flags: Flags, 
     case 'release': {
       const [item] = positionals(command, args, ['item'])
       return releaseCommand(await clientFor(io, dir), { item })
+    }
+    case 'attach': {
+      const [item, ...paths] = args
+      if (item === undefined || paths.length === 0) return usage('`attach` takes <item> and one or more files.')
+      if (flags.inbox === true) return usage('A file cannot wait in the Inbox: attaching needs level 4 (Act) on the board.')
+      const files = await prepareFiles(paths, io.readFile)
+      return attachCommand(await clientFor(io, dir), { item, files })
     }
     case 'undo': {
       const [requestId] = positionals(command, args, ['request_id'])

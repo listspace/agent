@@ -8,7 +8,7 @@ For when the user asks you to work through the board ("take the next items", "wo
 2. Read `allowed` from `start_session` (it is for this board's level; the one in `get_account` is for the account default). Each action key says `direct` (it happens), `inbox` (it waits in the board's Inbox for the user) or `no` (refused).
 3. Set the limit: the number of items the user gave, else 5 for this session.
 
-If `allowed.next_item` is `no`, there is no loop. Work on the item the user names without claiming it, suggest changes with `inbox: true` where `allowed` says `inbox`, or ask the user to raise the board's level (Board settings > Agents > Agent access).
+If `allowed.next_item` is `no`, there is no loop. Work on the item the user names without claiming it, suggest changes with `inbox: true` where `allowed` says `inbox`, or ask the user to raise the board's level (the board's menu under Agent access).
 
 ## The loop
 

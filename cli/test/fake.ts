@@ -7,6 +7,7 @@ import { join } from 'node:path'
 
 import type { FetchFn } from '../src/api.js'
 import { run, type Io } from '../src/cli.js'
+import { readLocalFile } from '../src/files.js'
 
 export const TOKEN = `ls_${'a'.repeat(43)}`
 export const BOARD_ID = '11111111-1111-4111-8111-111111111111'
@@ -77,6 +78,7 @@ export async function runCli(
     stdout: (text) => out.push(text),
     stderr: (text) => err.push(text),
     readSecret: async () => options.secret ?? null,
+    readFile: readLocalFile,
     configDir: options.configDir ?? (await tempDir()),
   }
   const code = await run(argv, io)

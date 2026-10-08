@@ -20,7 +20,7 @@ A list without a kind counts as a to do list. A move to another board follows th
 
 - `applied`: carry on. Keep `undo.request_id` in mind in case the change was wrong.
 - `suggested`: the change waits for the user in the board's Inbox (Agents window in the app). Say so in one line. Do not send it again, and do not reach the same result another way (such as a new item instead of a move).
-- Refused (an error naming the level): stop and tell the user which setting allows it (Board settings > Agents > Agent access, or Settings > Agents).
+- Refused (an error naming the level): stop and tell the user which setting allows it (the board's menu under Agent access, or Settings > Agents).
 - Rate limited (429): wait for `Retry-After` seconds. A full Inbox (200 waiting) or the hourly suggestion cap also answers 429; tell the user rather than retrying.
 
 ## Undo

@@ -14,7 +14,7 @@ Server: `https://mcp.listspace.app` (Streamable HTTP). Sign in with OAuth, or se
 | `list_due_items` | Items with due dates, soonest first |
 | `list_important_items` | Everything the user marked important (items, and the items of important lists), grouped by board |
 | `get_overview` | Every board: open items per list kind, overdue, due soon |
-| `list_templates` | Board templates with their lists and instructions, among them "Project (for agents)" and "Ops (private)" |
+| `list_templates` | Board templates with their category, description, lists and instructions: the gallery (sales, clients, professions, product, meetings, personal) plus "Project (for agents)" and "Ops (private)" |
 | `list_labels` | Labels and their ids |
 | `list_spaces` | The user's spaces (groups of boards, such as Personal and Work) in order, with board counts. `list_boards` takes `space_id` |
 | `list_suggestions` | A board's Inbox and what happened to your suggestions |
@@ -36,9 +36,11 @@ Each takes `inbox` (true: suggest, do not change) and `reason` (at most 500 char
 | `add_checklist_item` | `item_id`, `text` |
 | `add_comment` | `item_id`, `text` (markdown): progress notes on the item you work on |
 | `create_board` | `title`, optional `description` and `space_id`; no template and no lists gives "Project (for agents)" |
-| `create_list`, `update_list`, `update_board` | Lists and board details; rarely needed. `update_board` with `space_id` moves a board to another space |
+| `create_list`, `update_list`, `update_board` | Lists and board details; rarely needed. `update_list` with `kind` sets what a list is for (null for none). `update_board` with `space_id` moves a board to another space |
 | `withdraw_suggestion` | Take back one of your own pending suggestions |
 | `undo` | `request_id` from a result's `undo`: takes back that whole call |
+| `attach_url` | `item_id`, `url` (public https): Listspace downloads the file (at most 8 MB). Level 4; no `inbox` |
+| `attach_file` | `item_id`, `filename`, `mime_type`, `content_base64`. For a file on the user's computer use the CLI instead: `listspace attach` (see [files.md](files.md)) |
 | `restore_version` | `item_id`, `version`: puts that version back as a new version; nothing is deleted. Level 4 |
 
 ## Spaces
@@ -49,6 +51,12 @@ A space groups boards, like a desktop. Every board is in one; boards in results 
 |---|---|
 | `create_space` | `name` (1 to 40 characters), optional `color` (default `blue`). Level 3 |
 | `update_space` | `space_id`, then only what changes: `name`, `color`, `position` (0 first). Level 4 |
+
+## Feedback
+
+| Tool | Fields |
+|---|---|
+| `send_feedback` | Only after a `feedback_request` in `get_account` or `start_session`. `likes`, `missing` (the user's own words, at most 2000 characters each), optional `rating` (1 to 5), `may_quote` (default false; true only when the user said yes to being quoted with their first name), or `declined: true` and nothing else. About the user's account, so no freedom level applies. Takes no `inbox` or `reason` |
 
 ## Documents
 

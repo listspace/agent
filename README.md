@@ -16,6 +16,8 @@ npx listspace boards
 | `AGENTS.md.snippet` | Lines a user pastes into a repo's AGENTS.md or CLAUDE.md to point agents at their board. |
 | `scripts/` | `sync-skill.mjs` copies the skill into the plugin; `check-agent.mjs` (in CI) checks the copy, the frontmatter, the versions and the MCP entry. |
 
+The MCP server is also listed in the [MCP Registry](https://registry.modelcontextprotocol.io) as `app.listspace/listspace` and on [Smithery](https://smithery.ai/servers/jordibuskermolen/listspace).
+
 ## Editing the skill
 
 Edit `skills/listspace/` only, then run:
@@ -78,7 +80,7 @@ If you already added the Listspace MCP server yourself, Claude Code may show bot
 
 ## What is left out, and why
 
-- **`comment`** and **`attach`**: the API has them now (`POST /v1/items/:id/comments`, `POST /v1/items/:id/attachments`, MCP `add_comment`, `attach_file`), but the CLI does not yet. Agents on the CLI log progress in a Project info item (the skill says so).
+- **`comment`**: the API has it (`POST /v1/items/:id/comments`, MCP `add_comment`), but the CLI does not yet. Agents on the CLI log progress in a Project info item (the skill says so). `attach` is in the CLI since 0.2.0, because a file on disk is the one thing an agent cannot send reliably through MCP.
 - **Device pairing for `login`**: comes with sign-up (PR 9). `login` already separates "how the token is obtained" from saving it; a TODO in `cli/src/cli.ts` marks where pairing goes. `--token` and a piped token stay for scripts.
 - **A token in the plugin**: `.mcp.json` has no headers on purpose. A token would ship to every user; sign-in through `/mcp` is per user. The check script refuses headers there.
 - **The CLI inside the plugin** (`bin/`): left out, because claude.ai and Cowork do not install plugins with a top-level `bin/` and the MCP server covers Claude Code.

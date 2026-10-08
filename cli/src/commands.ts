@@ -1,10 +1,12 @@
 // One function per command. Each calls the REST API through ApiClient and
 // returns the server's JSON (for --json) and a readable text.
 
-import { fail, type ApiClient } from './api.js'
+import { CliFailure, fail, type ApiClient } from './api.js'
+import { ATTACHABLE_EXTENSIONS, MAX_FILE_BYTES, fileNameOf, formatSize, mimeTypeFor, type LocalFile } from './files.js'
 import { isRecord } from './decode.js'
 import {
   formatAccount,
+  formatAttached,
   formatBoard,
   formatBoards,
   formatClaim,
@@ -19,6 +21,7 @@ import {
 import {
   LIST_KINDS,
   account,
+  attached,
   boardDetail,
   boardSummary,
   claimResult,
@@ -31,6 +34,7 @@ import {
   session,
   undoResult,
   writeOutcome,
+  type Attached,
   type BoardDetail,
   type BoardSummary,
   type ListKind,
@@ -250,4 +254,78 @@ export async function claimCommand(client: ApiClient, input: { item: string; ttl
 export async function releaseCommand(client: ApiClient, input: { item: string }): Promise<Output> {
   const answer = await client.data('DELETE', `/items/${path(input.item)}/claim`, releaseResult)
   return { raw: answer.raw, text: formatRelease(answer.value) }
+}
+
+// ---- Files from the user's computer ----
+
+/** Reads a local file with its size checked first (files.readLocalFile; tests may pass another). */
+export type ReadFile = (path: string, maxBytes: number) => Promise<LocalFile>
+
+/** A local file checked and read, ready to upload. */
+export interface FileToAttach {
+  readonly path: string
+  readonly fileName: string
+  readonly mimeType: string
+  readonly bytes: Uint8Array
+}
+
+/**
+ * Checks every file before anything is sent: a known type, present, not
+ * empty, at most 8 MB. One bad file stops the whole command, so nothing is
+ * half attached because of a typo in the last path.
+ */
+export async function prepareFiles(paths: readonly string[], read: ReadFile): Promise<FileToAttach[]> {
+  const out: FileToAttach[] = []
+  for (const filePath of paths) {
+    const fileName = fileNameOf(filePath)
+    if (fileName.length > 255) return fail({ kind: 'usage', message: `${fileName}: the file name is longer than 255 characters. Rename it first.` })
+    const mimeType = mimeTypeFor(fileName)
+    if (mimeType === null) {
+      return fail({ kind: 'usage', message: `${fileName}: this type of file cannot be attached. Allowed: ${ATTACHABLE_EXTENSIONS.join(', ')}.` })
+    }
+    const file = await read(filePath, MAX_FILE_BYTES)
+    switch (file.kind) {
+      case 'ok':
+        if (file.bytes.length === 0) return fail({ kind: 'usage', message: `${filePath} is empty.` })
+        out.push({ path: filePath, fileName, mimeType, bytes: file.bytes })
+        break
+      case 'missing':
+        return fail({ kind: 'usage', message: `${filePath}: no such file.` })
+      case 'not_a_file':
+        return fail({ kind: 'usage', message: `${filePath} is a folder, not a file.` })
+      case 'too_large':
+        return fail({ kind: 'usage', message: `${filePath} is ${formatSize(file.sizeBytes)}; a file can be at most ${formatSize(MAX_FILE_BYTES)}. Share a link with attach_url instead, or make it smaller.` })
+      case 'unreadable':
+        return fail({ kind: 'unexpected', message: `Could not read ${filePath}: ${file.reason}` })
+      default: {
+        const exhaustive: never = file
+        return exhaustive
+      }
+    }
+  }
+  return out
+}
+
+/**
+ * Uploads the files to the item one by one. Attaching needs level 4 (Act):
+ * a file cannot wait in the Inbox. When one fails, the error says which
+ * files were attached already, so they are not sent twice.
+ */
+export async function attachCommand(client: ApiClient, input: { item: string; files: readonly FileToAttach[] }): Promise<Output> {
+  if (!UUID.test(input.item)) return fail({ kind: 'usage', message: `"${input.item}" is not an item id. Item ids come from \`listspace board <board>\`.` })
+  const results: Attached[] = []
+  const raw: unknown[] = []
+  for (const file of input.files) {
+    const body = { filename: file.fileName, mime_type: file.mimeType, content_base64: Buffer.from(file.bytes).toString('base64') }
+    try {
+      const answer = await client.data('POST', `/items/${path(input.item)}/attachments`, attached, { body })
+      results.push(answer.value)
+      raw.push(answer.raw)
+    } catch (error) {
+      if (!(error instanceof CliFailure) || results.length === 0) throw error
+      const done = results.map((result) => result.attachment.filename).join(', ')
+      throw new CliFailure({ ...error.error, message: `Attached ${done}; ${file.fileName} and the rest were not: ${error.error.message}` })
+    }
+  }
+  return { raw: { data: raw }, text: formatAttached(results) }
 }

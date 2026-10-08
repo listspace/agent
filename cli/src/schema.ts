@@ -208,3 +208,18 @@ export function page<T>(entry: Decoder<T>): Decoder<{ data: T[]; next_cursor: st
 }
 
 export const errorBody = object({ error: object({ code: string, message: string }) })
+
+/** POST /items/:id/attachments: the stored file. A file never waits in the Inbox. */
+export const attached = object({
+  outcome: literal('applied'),
+  level,
+  attachment: object({
+    id: string,
+    item_id: string,
+    filename: string,
+    mime_type: nullable(string),
+    size_bytes: nullable(number),
+    url: string,
+  }),
+})
+export type Attached = Decoded<typeof attached>

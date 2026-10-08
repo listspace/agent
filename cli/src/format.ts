@@ -1,7 +1,9 @@
 // Readable output for people. Agents pass --json and get the server's JSON.
 
+import { formatSize } from './files.js'
 import type {
   Account,
+  Attached,
   BoardDetail,
   BoardSummary,
   ClaimResult,
@@ -188,4 +190,13 @@ export function formatRelease(result: ReleaseResult): string {
       return exhaustive
     }
   }
+}
+
+export function formatAttached(results: readonly Attached[]): string {
+  return results
+    .map(({ attachment, level }) => {
+      const size = attachment.size_bytes === null ? '' : ` (${formatSize(attachment.size_bytes)})`
+      return `Attached "${attachment.filename}"${size} to ${attachment.item_id}  ${attachment.id} (${levelText(level)}).`
+    })
+    .join('\n')
 }

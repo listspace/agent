@@ -3,6 +3,7 @@
 import { createInterface } from 'node:readline/promises'
 
 import { run } from './cli.js'
+import { readLocalFile } from './files.js'
 
 async function readSecret(prompt: string): Promise<string | null> {
   if (process.stdin.isTTY) {
@@ -26,5 +27,6 @@ const code = await run(process.argv.slice(2), {
   stdout: (text) => process.stdout.write(`${text}\n`),
   stderr: (text) => process.stderr.write(`${text}\n`),
   readSecret,
+  readFile: readLocalFile,
 })
 process.exitCode = code

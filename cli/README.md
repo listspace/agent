@@ -57,6 +57,9 @@ Write (the board's freedom level decides what is made and what waits in the Inbo
   undo <request_id>         Take back one of your own calls.
   Writes take --inbox --reason "<why>" to suggest instead of change.
 
+Files from this computer (needs level 4, Act)
+  attach <item> <file> [<file>...]   At most 8 MB each.
+
 Work on your own (needs level 4, Act)
   next <board> [--kinds todo,backlog] [--label <id>] [--no-move] [--ttl <minutes>]
   claim <item> [--ttl <minutes>]
@@ -71,6 +74,16 @@ Example:
 npx listspace session "Website"
 npx listspace add "Website" ideas "Try dark mode" --description "Seen in **settings**"
 ```
+
+## Attach files
+
+`attach` uploads files from your computer to an item, one after another:
+
+```bash
+npx listspace attach 2b6f0c1e-... ./contract.pdf ./screenshots/footer.png
+```
+
+The type comes from the extension: images (jpg, png, gif, webp, svg), PDF, Word, Excel and PowerPoint files, text, Markdown, CSV, JSON, archives (zip, rar, 7z), audio and video. Each file can be at most 8 MB. Every file is checked before the first one is sent. Attaching needs level 4 (Act) on the board: a file cannot wait in the Inbox.
 
 ## Output for agents and scripts
 
