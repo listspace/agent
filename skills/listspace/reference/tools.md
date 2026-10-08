@@ -43,6 +43,40 @@ Each takes `inbox` (true: suggest, do not change) and `reason` (at most 500 char
 | `attach_file` | `item_id`, `filename`, `mime_type`, `content_base64`. For a file on the user's computer use the CLI instead: `listspace attach` (see [files.md](files.md)) |
 | `restore_version` | `item_id`, `version`: puts that version back as a new version; nothing is deleted. Level 4 |
 
+## Checklists, list groups and many items
+
+One tool per change. Each takes `inbox` and `reason` like the writes above.
+
+| Tool | Fields |
+|---|---|
+| `create_checklist` | `item_id`, `title`, optional `items` (its first checklist items). For one more item on a checklist, use `add_checklist_item` |
+| `rename_checklist` | `item_id`, `checklist_id`, `title` |
+| `check_checklist_item` | `item_id`, `checklist_item_id`, `done` (true or false) |
+| `edit_checklist_item` | `item_id`, `checklist_item_id`, `text` |
+| `move_checklist_item` | `item_id`, `checklist_item_id`, `position` (0 first) |
+| `remove_checklist_item` | `item_id`, `checklist_item_id`. Removes only items you added; any other waits in the Inbox. To finish one, check it instead |
+| `create_list_group` | `board_id`, `title`, optional `color` |
+| `update_list_group` | `board_id`, `group_id`, then only what changes: `title`, `color`, `collapsed` |
+| `move_list_to_group` | `board_id`, `list_id`, `group_id` (null: out of any group) |
+| `reorder_list_groups` | `board_id`, `group_ids` (all of them, in order) |
+| `bulk_move_items` | `item_ids` (up to 100), `list_id`, optional `position` |
+| `bulk_add_label`, `bulk_remove_label` | `item_ids`, `label_id` |
+| `bulk_set_due` | `item_ids`, `due_date` (null removes it) |
+| `bulk_complete_items` | `item_ids`: ticks their due dates as met |
+| `bulk_archive_items` | `item_ids`; `archived: false` restores. Only when the user asks |
+
+A bulk call needs the level the same change needs for one item, and its `undo.request_id` takes the whole call back. Items on two boards cannot be suggested in one call: send one call per board.
+
+## Labels
+
+Labels belong to the account, so the account's level decides and they never wait in the Inbox. They take no `inbox` or `reason`.
+
+| Tool | Fields |
+|---|---|
+| `create_label` | `name`, optional `color` (default `blue`). Level 4 |
+| `update_label` | `label_id`, then `name`, `color` or both. Level 4 |
+| `delete_label` | `label_id`. Only a label on no item: take it off first with `bulk_remove_label`. Level 5 |
+
 ## Spaces
 
 A space groups boards, like a desktop. Every board is in one; boards in results carry `space_id`. Spaces belong to the account, so the account's level decides and they never wait in the Inbox. They take no `inbox` or `reason`. Agents never delete spaces.
