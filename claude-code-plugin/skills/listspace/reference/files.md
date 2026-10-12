@@ -20,5 +20,10 @@ The CLI reads each file from disk, checks it and uploads it to the item. You nev
 ## Other ways
 
 - A file on the web: `attach_url` with its public https address. Listspace downloads it.
-- No shell (a chat app such as Claude or ChatGPT): ask the user to drop the file on the item in the Listspace app.
+- A document you write yourself (a report, a quote, notes) as a PDF, a Word file or markdown: `attach_document` with `format` (`pdf`, `docx` or `md`), a `title` and the text as markdown in `content`. Listspace makes the file and attaches it; you never handle bytes. This works in chat apps too. `from_item: true` makes the file from the item's own description or document instead, so you do not send the text again.
+- No shell (a chat app such as Claude or ChatGPT) and a file the user already has: ask the user to drop the file on the item in the Listspace app.
 - A tiny text file you wrote yourself: `attach_file` with base64 is fine.
+
+## A new version of a file
+
+When a file on the item gets a new draft (a report, a contract, a design), attach the new one with `replaces_attachment_id` set to the current file's id (from `list_attachments`). It becomes the current file and the old one is kept as an older version, with its comments; the user can open, restore or delete older versions in the app. `list_attachments` shows each file's `version` and `older_versions`.

@@ -109,6 +109,8 @@ export function formatCreatedBoard(board: CreatedBoard): string {
     `Created board "${board.title}"  ${board.id}`,
     board.url,
     `Lists: ${board.lists.map((list) => list.title).join(', ')}`,
+    ...(board.space === null ? [] : [`Space: ${board.space.name}`]),
+    ...(board.space_note === null ? [] : [board.space_note]),
     ...block('Board instructions (follow these)', board.instructions),
     ...(board.undo === null ? [] : [`Undo: listspace undo ${board.undo.request_id}`]),
   ].join('\n')

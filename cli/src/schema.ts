@@ -121,6 +121,10 @@ export const createdBoard = object({
   level,
   lists: array(object({ id: string, title: string, kind: listKind })),
   undo: nullable(object({ request_id: string })),
+  /** Where the board went (absent from servers before spaces) */
+  space: withDefault(nullable(object({ id: string, name: string })), null),
+  /** Set when no space was given and the user has more than one */
+  space_note: withDefault(nullable(string), null),
 })
 export type CreatedBoard = Decoded<typeof createdBoard>
 

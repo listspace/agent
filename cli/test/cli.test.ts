@@ -167,6 +167,31 @@ test('new-board sends only the title so the server uses the agent template', asy
   assert.match(result.stdout, /Lists: Project info, Ideas, Bugs, To do, Doing, Done/)
 })
 
+test('new-board --space sends the space and says where the board went', async () => {
+  const result = await runCli(['new-board', 'Garden', '--space', 'sp-2'], {
+    'POST /boards': {
+      status: 201,
+      body: { data: { ...boardBody.data, title: 'Garden', instructions: null, undo: null, space: { id: 'sp-2', name: 'Work', is_default: false } } },
+    },
+  })
+  assert.equal(result.code, 0, result.stderr)
+  assert.deepEqual(result.sent[0]?.body, { title: 'Garden', space_id: 'sp-2' })
+  assert.match(result.stdout, /Space: Work/)
+})
+
+test('new-board without --space passes on the space note from the server', async () => {
+  const note = 'No space_id was given, so the board went to the default space "Personal". Tell the user where the board is.'
+  const result = await runCli(['new-board', 'Garden'], {
+    'POST /boards': {
+      status: 201,
+      body: { data: { ...boardBody.data, title: 'Garden', instructions: null, undo: null, space: { id: 'sp-1', name: 'Personal', is_default: true }, space_note: note } },
+    },
+  })
+  assert.equal(result.code, 0, result.stderr)
+  assert.match(result.stdout, /Space: Personal/)
+  assert.ok(result.stdout.includes(note))
+})
+
 test('401 exits 3 and says to log in; --json puts the error on stdout', async () => {
   const routes = { 'GET /account': { status: 401, body: { error: { code: 'unauthorized', message: 'Token revoked.' } } } }
   const text = await runCli(['whoami'], routes)
@@ -268,7 +293,7 @@ test('next sends kinds, labels (repeated and comma list), move_to_doing and ttl,
   assert.equal(result.code, 0, result.stderr)
   const post = result.sent.find((sent) => sent.method === 'POST')
   assert.deepEqual(post?.body, { kinds: ['todo', 'backlog'], label_ids: [LABEL_A, LABEL_B], move_to_doing: true, ttl_minutes: 30 })
-  assert.match(result.stdout, /Claimed "Fix the footer"  22222222/)
+  assert.match(result.stdout, /Claimed "Fix the footer" {2}22222222/)
   assert.match(result.stdout, /Moved to Doing\./)
   assert.match(result.stdout, /runs out at 2026-10-05T12:00:00Z/)
   assert.match(result.stdout, /listspace undo req-7/)

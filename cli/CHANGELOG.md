@@ -2,6 +2,11 @@
 
 One version runs through the CLI, the skill and the Claude Code plugin, so each entry covers all three.
 
+## Unreleased
+
+- `listspace new-board` takes `--space <space id>`, so an agent on the CLI can put a new board in the space the user chose, as `create_board` does with `space_id`. The text output says which space the board went to and passes on the server's note when no space was given and the user has more than one.
+- The skill's CLI table shows `--space`.
+
 ## 0.2.0
 
 - New command `listspace attach <item> <file> [<file>...]`: uploads files from your computer to an item through the REST API, so an agent no longer has to write a file out as base64. The type comes from the extension (the same types the app accepts; Markdown goes up as plain text), and every file is checked before the first upload: known type, present, not empty, at most 8 MB. `--json` prints one server answer per file. Needs level 4 (Act) on the board.

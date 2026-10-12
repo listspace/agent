@@ -2,6 +2,19 @@
 
 For when the user asks you to work through the board ("take the next items", "work the To do list") or a webhook or schedule started you. It needs freedom level 4 (Act), because it claims items. More for the user: [What agents can do](https://listspace.app/docs/agents)
 
+## Working the user's list
+
+The user says "handle my tasks for today", "work through To do on the website board" or "do what you can from my list". No setting, runner or schedule is involved: the user starts it, you do the rest, and freedom levels still apply. Some MCP clients also offer the server's `work_my_list` prompt for it.
+
+1. `get_account`: read `guidance` and your level on each board.
+2. Pick the items. Today (or no list named): `my_items` with `needs_action: true`; take the `kind: "do"` entries and leave `kind: "inbox"` ones to the user. A named list: `get_board`, then its open items from the top, or `next_item` for a board's to do list.
+3. Skip what needs a human: an approval, a call or meeting, a payment, a signature, a decision only the user can make. Skip items another agent holds (`from.yours` false, or `claim.yours` false). Note each skip and why.
+4. Each item you can do: `claim_item` (level 4; below that, work without claiming and send changes with `inbox: true`), `get_item`, do the work.
+5. `add_comment` with what you did, then move it along: `move_item` to the done list, or `complete_item` when it has a due date. With `inbox: true` and a reason when `allowed` says `inbox`. Then `release_item`.
+6. Need the user's answer? Do not wait. `add_comment` on the item with `inbox: true` and the question as the `reason`: it waits in the Inbox and shows in the user's For you. Release the item and take the next one.
+7. Stop when the list is done, at the user's number, or when the level refuses. Release every claim.
+8. Report in three parts: done (titles), waiting for you (what is in the Inbox and why), skipped (titles and why).
+
 ## Before the loop
 
 1. `get_account`, then `start_session` with the board (CLI: `listspace whoami --json`, `listspace session <board> --json`). Read `guidance` and the board's `instructions` first; they override this page.

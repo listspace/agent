@@ -10,15 +10,20 @@ Server: `https://mcp.listspace.app` (Streamable HTTP). Sign in with OAuth, or se
 | `start_session` | `board_id`: guidance, instructions, level, `allowed` for this board, lists with kinds, `work`, `captured`, `recently_done`, `due_soon` |
 | `get_board` | Every list (with `kind`) and item id on a board, and `allowed` |
 | `get_item` | One item in full; description as markdown; `link_previews` (title, image, site, and for books ISBN, authors and summary) |
+| `export_item` | A 15-minute download link to one item or document as a markdown file, for the user only |
 | `search_items` | Items by words across boards; run it before adding to avoid duplicates |
 | `list_due_items` | Items with due dates, soonest first |
 | `list_important_items` | Everything the user marked important (items, and the items of important lists), grouped by board |
+| `my_items` | For you: items due, items agents are working on, Inbox suggestions and requests for the user (as their kinds, with `request`), across all boards, grouped overdue, today, this week, later, no date; `waiting` lists what the user waits for. `needs_action: true` for only what needs the user now |
+| `my_requests` | Requests both ways: `for_you` (with the `answers` the user can give, and `context` on the first 10: a briefing with a `summary`), `waiting` and `recent` (with `request_outcome`), each with `status_line` ("For Sara, by Fri") |
+| `list_board_members` | Who is on a board (the owner and guests, with `user_id`): the people a request can go to |
 | `get_overview` | Every board: open items per list kind, overdue, due soon |
 | `list_templates` | Board templates with their category, description, lists and instructions: the gallery (sales, clients, professions, product, meetings, personal) plus "Project (for agents)" and "Ops (private)" |
 | `list_labels` | Labels and their ids |
 | `list_spaces` | The user's spaces (groups of boards, such as Personal and Work) in order, with board counts. `list_boards` takes `space_id` |
 | `list_suggestions` | A board's Inbox and what happened to your suggestions |
-| `get_history` | Who changed what on a board or item, with `request_id` and `can_undo` |
+| `get_history` | Who changed what on a board or item, with `request_id` and `can_undo`; `since` leaves out older changes |
+| `catch_up` | What happened since a moment (default: since the user last opened the board), summed up for a short briefing: counts, who did what, the few items that matter, the Inbox, overdue. One board or all |
 | `list_versions` | A document's saved versions, newest first: who, when, size, note |
 | `get_version` | `item_id`, `version`: one version's title and text (markdown), and `current_version` |
 
@@ -34,14 +39,19 @@ Each takes `inbox` (true: suggest, do not change) and `reason` (at most 500 char
 | `complete_item` | `item_id`: ticks the due date as met. Needs a due date. Finishing work is a move to the `done` list instead |
 | `archive_item` | `item_id`; `archived: false` restores. Only when the user asks |
 | `add_checklist_item` | `item_id`, `text` |
-| `add_comment` | `item_id`, `text` (markdown): progress notes on the item you work on |
+| `add_comment` | `item_id`, `text` (markdown): progress notes on the item you work on; `attachment_id` puts it on one file of the item (feedback on a design), `anchor` (`quote`, optional `occurrence`) on a passage of a document (a review of a PRD); with `attachment_id`, `pin` (`x`, `y` from 0 to 1, `page` on a PDF) puts it at a spot of an image, and `anchor` with `page` on a passage of a PDF; `parent_id` makes it a reply; `mentions` (user ids from `list_board_members`) mentions people on the board, who are told at once |
+| `send_request` | `item_id`, `to_user_id` (someone on the board), `kind` (`do`, `look`, `question`, `approve`), `message`, `due_date` (needed for `do`). Owner and Edit guests send any kind, Comment guests `question` and `look`. Sends in the user's name: confirm it with the user in one line first |
+| `answer_request` | `request_id`, `answer` (by kind: `do` accept, decline, pass, then done; `look` and `question` reply, decline, pass; `approve` approve, reject, pass), `text` (the reason or reply), `to_user_id` (for `pass`), `outcome` (for an answer that closes it: a result for the asker in at most 2 lines). Only for a request for the user, with the user's own answer |
 | `create_board` | `title`, optional `description` and `space_id`; no template and no lists gives "Project (for agents)" |
-| `create_list`, `update_list`, `update_board` | Lists and board details; rarely needed. `update_list` with `kind` sets what a list is for (null for none). `update_board` with `space_id` moves a board to another space |
+| `create_list`, `update_list`, `update_board` | Lists and board details; rarely needed. `create_list` and `update_list` take `kind` for what a list is for (null for none). `update_board` with `space_id` moves a board to another space |
 | `withdraw_suggestion` | Take back one of your own pending suggestions |
 | `undo` | `request_id` from a result's `undo`: takes back that whole call |
 | `attach_url` | `item_id`, `url` (public https): Listspace downloads the file (at most 8 MB). Level 4; no `inbox` |
 | `attach_file` | `item_id`, `filename`, `mime_type`, `content_base64`. For a file on the user's computer use the CLI instead: `listspace attach` (see [files.md](files.md)) |
+| `attach_document` | `item_id`, `format` (`pdf`, `docx`, `md`), `content` (markdown, at most 200000 characters, 40000 for a PDF) or `from_item: true`, optional `title` and `filename`: Listspace makes the file and attaches it. A PDF uses a standard font (Western European letters); use `docx` for other scripts. A `busy` error means another file is being made: try again in a few seconds. Level 4; no `inbox` |
 | `restore_version` | `item_id`, `version`: puts that version back as a new version; nothing is deleted. Level 4 |
+
+`attach_url`, `attach_file` and `attach_document` take `replaces_attachment_id` (a current file of the item): the new file becomes that file's newest version and the old one is kept as an older version, with its comments. Use it for a new draft of a file you or the user attached before, so the item does not collect report-v1, report-v2 and report-final side by side.
 
 ## Checklists, list groups and many items
 
@@ -90,7 +100,7 @@ A space groups boards, like a desktop. Every board is in one; boards in results 
 
 | Tool | Fields |
 |---|---|
-| `send_feedback` | Only after a `feedback_request` in `get_account` or `start_session`. `likes`, `missing` (the user's own words, at most 2000 characters each), optional `rating` (1 to 5), `may_quote` (default false; true only when the user said yes to being quoted with their first name), or `declined: true` and nothing else. About the user's account, so no freedom level applies. Takes no `inbox` or `reason` |
+| `send_feedback` | Only after a `feedback_request` in `get_account` or `start_session`. `likes`, `missing` (the user's own words, at most 2000 characters each), optional `rating` (1 to 5), `may_quote` (default false; true only when the user said yes to being quoted by first name), or `declined: true` and nothing else. About the user's account, so no freedom level applies. Takes no `inbox` or `reason` |
 
 ## Documents
 

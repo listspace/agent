@@ -146,9 +146,16 @@ export async function boardCommand(client: ApiClient, input: { board: string }):
   return { raw: answer.raw, text: formatBoard(answer.value) }
 }
 
-export async function newBoardCommand(client: ApiClient, input: { title: string; description: string | null }): Promise<Output> {
+export async function newBoardCommand(
+  client: ApiClient,
+  input: { title: string; description: string | null; space: string | null },
+): Promise<Output> {
   // No template_id and no lists: the server uses "Project (for agents)"
-  const body = input.description === null ? { title: input.title } : { title: input.title, description: input.description }
+  const body = {
+    title: input.title,
+    ...(input.description === null ? {} : { description: input.description }),
+    ...(input.space === null ? {} : { space_id: input.space }),
+  }
   const answer = await client.data('POST', '/boards', createdBoard, { body })
   return { raw: answer.raw, text: formatCreatedBoard(answer.value) }
 }

@@ -14,7 +14,7 @@ The user runs `npx listspace login` once and pastes a token from Listspace (Sett
 | `listspace boards --json` | `list_boards` |
 | `listspace session <board> --json` | `start_session` |
 | `listspace board <board> --json` | `get_board` |
-| `listspace new-board "<title>" --json` | `create_board` (Project for agents) |
+| `listspace new-board "<title>" --space <space_id> --json` | `create_board` (Project for agents); leave out `--space` only when the user has one space |
 | `listspace add <board> <list> "<title>" --description "<markdown>" --json` | `create_item` |
 | `listspace move <item> <list> --json` | `move_item` |
 | `listspace done <item> --json` | `move_item` to the board's `done` list |

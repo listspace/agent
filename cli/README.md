@@ -50,7 +50,10 @@ Read
   inbox <board> [--status pending|accepted|rejected|withdrawn|expired|failed|all]
 
 Write (the board's freedom level decides what is made and what waits in the Inbox)
-  new-board <title> [--description <text>]
+  new-board <title> [--description <text>] [--space <space id>]
+                            With more than one space (see whoami), ask the user
+                            which one and pass --space; without it the board
+                            goes to the default space.
   add <board> <list> <title> [--description <markdown>]
   move <item> <list>
   done <item>               Move to the board's done list.

@@ -62,7 +62,11 @@ Read
   inbox <board> [--status pending|accepted|rejected|withdrawn|expired|failed|all]
 
 Write (the board's freedom level decides what is made and what waits in the Inbox)
-  new-board <title> [--description <text>]   A board from "Project (for agents)".
+  new-board <title> [--description <text>] [--space <space id>]
+                            A board from "Project (for agents)". With more than
+                            one space (see whoami), ask the user which one and
+                            pass --space; without it the board goes to the
+                            default space.
   add <board> <list> <title> [--description <markdown>]
   move <item> <list>
   done <item>               Move to the board's done list.
@@ -116,6 +120,7 @@ const OPTIONS = {
   version: { type: 'boolean', short: 'v' },
   token: { type: 'string' },
   description: { type: 'string' },
+  space: { type: 'string' },
   inbox: { type: 'boolean' },
   reason: { type: 'string' },
   status: { type: 'string' },
@@ -255,7 +260,7 @@ async function dispatch(command: string, args: readonly string[], flags: Flags, 
     }
     case 'new-board': {
       const [title] = positionals(command, args, ['title'])
-      return newBoardCommand(await clientFor(io, dir), { title, description: flags.description ?? null })
+      return newBoardCommand(await clientFor(io, dir), { title, description: flags.description ?? null, space: flags.space ?? null })
     }
     case 'add': {
       const [board, list, title] = positionals(command, args, ['board', 'list', 'title'])

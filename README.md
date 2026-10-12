@@ -13,7 +13,7 @@ npx listspace boards
 | `cli/` | `listspace`, a small Node CLI over the REST API (`https://api.listspace.app/v1`) for agents without the MCP server. TypeScript bundled into one ESM file, no runtime dependencies, Node 20 or later. |
 | `claude-code-plugin/` | A Claude Code plugin: the skill (a copied file set) and `.mcp.json`, which registers the remote MCP server `https://mcp.listspace.app`. |
 | `.claude-plugin/marketplace.json` | A marketplace file listing the plugin, so this folder can be added as a local marketplace now and as a GitHub one later. |
-| `AGENTS.md.snippet` | Lines a user pastes into a repo's AGENTS.md or CLAUDE.md to point agents at their board. |
+| `AGENTS.md.snippet` | Lines a user pastes into a repo's AGENTS.md or CLAUDE.md to point agents at the right board. |
 | `scripts/` | `sync-skill.mjs` copies the skill into the plugin; `check-agent.mjs` (in CI) checks the copy, the frontmatter, the versions and the MCP entry. |
 
 The MCP server is also listed in the [MCP Registry](https://registry.modelcontextprotocol.io) as `app.listspace/listspace` and on [Smithery](https://smithery.ai/servers/jordibuskermolen/listspace).
