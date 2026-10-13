@@ -5,6 +5,7 @@
 // 3. One version everywhere: CLI package.json, src/version.ts, plugin.json, SKILL.md.
 // 4. The plugin's .mcp.json registers the remote MCP server over HTTPS.
 // 5. No em or en dashes in any text under agent/.
+// 6. The plugin's hooks: valid hooks.json, each command a short node call of a script in hooks/ that exists, ending in "; exit 0".
 // Exits 1 with every problem listed.
 
 import { readdir, readFile } from 'node:fs/promises'
@@ -139,6 +140,41 @@ let skillVersion = null
   if (server?.headers !== undefined) problem('claude-code-plugin/.mcp.json must not carry headers: a token there would ship to every user')
 }
 
+// 6. The plugin's hooks
+{
+  const hooksFile = join(agent, 'claude-code-plugin', 'hooks', 'hooks.json')
+  const hooks = await readJson(hooksFile)
+  const events = hooks?.hooks
+  if (hooks !== null && (typeof events !== 'object' || events === null)) problem('claude-code-plugin/hooks/hooks.json needs a top-level "hooks" object')
+  for (const [event, groups] of Object.entries(events ?? {})) {
+    if (!Array.isArray(groups)) {
+      problem(`hooks.json ${event}: must be a list`)
+      continue
+    }
+    for (const group of groups) {
+      for (const hook of group?.hooks ?? []) {
+        // "; exit 0": without Node.js on the computer the hook still exits 0, so Claude Code shows no hook error (sh, Git Bash and PowerShell)
+        const script = /^node "\$\{CLAUDE_PLUGIN_ROOT\}\/(hooks\/[a-z-]+\.mjs)" [a-z]+; exit 0$/.exec(hook?.command ?? '')
+        if (hook?.type !== 'command' || script === null) {
+          problem(`hooks.json ${event}: each hook must be a command that runs node on a script in hooks/, with the CLAUDE_PLUGIN_ROOT path in double quotes, and ends in "; exit 0"`)
+          continue
+        }
+        try {
+          await readFile(join(agent, 'claude-code-plugin', script[1]))
+        } catch {
+          problem(`hooks.json ${event}: ${script[1]} does not exist`)
+        }
+        if (typeof hook.timeout !== 'number' || hook.timeout > 10) problem(`hooks.json ${event}: set a timeout of at most 10 seconds`)
+      }
+    }
+  }
+  if (events?.Stop === undefined) problem('hooks.json: the decision check and the progress check run on Stop')
+  for (const script of ['decision-check.mjs', 'progress-check.mjs']) {
+    const onStop = (events?.Stop ?? []).some((group) => (group?.hooks ?? []).some((hook) => typeof hook?.command === 'string' && hook.command.includes(`hooks/${script}" stop;`)))
+    if (!onStop) problem(`hooks.json: ${script} runs on Stop`)
+  }
+}
+
 // 5. No em or en dashes
 for (const path of await files(agent)) {
   if (!TEXT.test(path)) continue
@@ -152,4 +188,4 @@ if (problems.length > 0) {
   process.stderr.write(`agent/ check failed:\n${problems.map((p) => `- ${p}`).join('\n')}\n`)
   process.exit(1)
 }
-process.stdout.write('agent/ check passed: skill copy in sync, frontmatter valid, versions match, MCP server set, no em or en dashes.\n')
+process.stdout.write('agent/ check passed: skill copy in sync, frontmatter valid, versions match, MCP server set, hooks valid, no em or en dashes.\n')

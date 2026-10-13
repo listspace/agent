@@ -40,7 +40,7 @@ export const fail = (error: CliError): never => {
   throw new CliFailure(error)
 }
 
-export const LOGIN_HINT = 'Run `listspace login` with a personal token (Listspace: Settings > API), or set LISTSPACE_TOKEN.'
+export const LOGIN_HINT = 'Run `listspace login` with a personal token (Listspace: Settings > Developers), or set LISTSPACE_TOKEN.'
 
 export interface ApiClientOptions {
   readonly baseUrl: string
@@ -140,7 +140,7 @@ export function errorFor(response: Response, json: unknown): CliError {
     return { kind: 'rate_limited', message: `${message} ${wait} before trying again.`, retryAfterSeconds: seconds }
   }
   if (response.status === 403 && code === 'insufficient_scope') {
-    return { kind: 'api', status: 403, code, message: `${message} This token is read only; create a read and write token in Settings > API.` }
+    return { kind: 'api', status: 403, code, message: `${message} This token is read only; create a read and write token in Settings > Developers.` }
   }
   return { kind: 'api', status: response.status, code, message }
 }

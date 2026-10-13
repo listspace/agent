@@ -20,7 +20,7 @@ npm install -g listspace
 
 ## Sign in
 
-Create a personal token in Listspace under **Settings > API**, then save it:
+Create a personal token in Listspace under **Settings > Developers**, then save it:
 
 ```bash
 npx listspace login --token ls_...
@@ -38,9 +38,9 @@ The token is saved as `credentials.json` (mode 600) in your OS config directory:
 
 ```text
 Sign in
-  login [--token ls_...]    Save a personal token (Listspace: Settings > API).
+  login [--token ls_...]    Save a personal token (Listspace: Settings > Developers).
   logout                    Forget the saved token.
-  whoami                    Plan, freedom levels, guidance and boards (alias: account).
+  whoami                    Plan, agent access, guidance and boards (alias: account).
 
 Read
   boards                    Your boards with their ids.
@@ -49,7 +49,7 @@ Read
   board <board>             Lists and items with their ids.
   inbox <board> [--status pending|accepted|rejected|withdrawn|expired|failed|all]
 
-Write (the board's freedom level decides what is made and what waits in the Inbox)
+Write (the board's agent access level decides what is made and what waits in the Inbox)
   new-board <title> [--description <text>] [--space <space id>]
                             With more than one space (see whoami), ask the user
                             which one and pass --space; without it the board
@@ -108,7 +108,7 @@ Exit codes: 0 ok, 1 failed, 2 usage error, 3 sign-in needed, 4 rate limited (wai
 
 ## What agents may do
 
-Each board has a freedom level that decides what an agent may change on its own. Changes that need your approval wait in the board's Inbox, and every change shows who made it. The rules are in [What AI agents can do](https://listspace.app/docs/agents). Agents that support MCP can also connect to `https://mcp.listspace.app` instead of using this CLI ([setup](https://listspace.app/docs/mcp)).
+Each board has an agent access level that decides what an agent may change on its own. Changes that need your approval wait in the board's Inbox, and every change shows who made it. The rules are in [What AI agents can do](https://listspace.app/docs/agents). Agents that support MCP can also connect to `https://mcp.listspace.app` instead of using this CLI ([setup](https://listspace.app/docs/mcp)).
 
 ## License
 

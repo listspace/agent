@@ -1,0 +1,34 @@
+{
+  "description": "Listspace checks. Decision check: when the user decides something in a session that uses Listspace and no decision was recorded, Claude is sent back once to check and record it as Proposed. Progress check: when a turn in a session that uses Listspace changed files, committed, pushed, opened or merged a pull request or deployed, and told the board nothing, Claude is sent back once to move the item and add a short comment. Each command ends in exit 0, so a computer without Node.js shows no hook error.",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/decision-check.mjs\" prompt; exit 0", "timeout": 5 }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "mcp__plugin_listspace_listspace__.*|mcp__listspace__.*",
+        "hooks": [
+          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/decision-check.mjs\" tool; exit 0", "timeout": 5 }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash|PowerShell|mcp__plugin_listspace_listspace__.*|mcp__listspace__.*",
+        "hooks": [
+          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/progress-check.mjs\" tool; exit 0", "timeout": 5 }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/decision-check.mjs\" stop; exit 0", "timeout": 5 },
+          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/progress-check.mjs\" stop; exit 0", "timeout": 5 }
+        ]
+      }
+    ]
+  }
+}

@@ -49,10 +49,10 @@ export const HELP = `listspace ${VERSION}: Listspace from the command line, for 
 Usage: listspace <command> [arguments] [--json]
 
 Sign in
-  login [--token ls_...]    Save a personal token (Listspace: Settings > API).
+  login [--token ls_...]    Save a personal token (Listspace: Settings > Developers).
                             Without --token it reads the token from stdin.
   logout                    Forget the saved token.
-  whoami                    Plan, freedom levels, guidance and boards (alias: account).
+  whoami                    Plan, agent access, guidance and boards (alias: account).
 
 Read
   boards                    Your boards with their ids.
@@ -61,7 +61,7 @@ Read
   board <board>             Lists and items with their ids.
   inbox <board> [--status pending|accepted|rejected|withdrawn|expired|failed|all]
 
-Write (the board's freedom level decides what is made and what waits in the Inbox)
+Write (the board's agent access level decides what is made and what waits in the Inbox)
   new-board <title> [--description <text>] [--space <space id>]
                             A board from "Project (for agents)". With more than
                             one space (see whoami), ask the user which one and
@@ -212,7 +212,7 @@ type LoginMethod = { readonly kind: 'token'; readonly raw: string } | { readonly
 
 async function loginMethod(flags: Flags, io: Io): Promise<LoginMethod> {
   if (flags.token !== undefined) return { kind: 'token', raw: flags.token }
-  const typed = await io.readSecret('Paste a personal token from Listspace (Settings > API): ')
+  const typed = await io.readSecret('Paste a personal token from Listspace (Settings > Developers): ')
   if (typed === null || typed.trim() === '') return { kind: 'pairing' }
   return { kind: 'token', raw: typed }
 }
@@ -241,7 +241,7 @@ async function dispatch(command: string, args: readonly string[], flags: Flags, 
     case 'logout': {
       positionals(command, args, [])
       const removed = await removeToken(dir)
-      return { raw: { signed_out: removed }, text: removed ? 'Signed out: the saved token is gone (revoke it in Settings > API if it leaked).' : 'No saved token.' }
+      return { raw: { signed_out: removed }, text: removed ? 'Signed out: the saved token is gone (revoke it in Settings > Developers if it leaked).' : 'No saved token.' }
     }
     case 'whoami':
     case 'account':

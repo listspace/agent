@@ -47,7 +47,7 @@ export interface Output {
 }
 
 /**
- * How a write is sent: made directly (the board's freedom level still
+ * How a write is sent: made directly (the board's agent access level still
  * decides, and may send it to the Inbox anyway) or put in the Inbox on purpose.
  */
 export type InboxChoice = { readonly kind: 'direct'; readonly reason: string | null } | { readonly kind: 'inbox'; readonly reason: string }
