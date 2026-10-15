@@ -54,6 +54,24 @@ const GH_WORK = /(?:^|[\s;&|(])gh\s+pr\s+(?:create|merge)\b/
 /** A deploy: a deploy script or a deploy command of a common tool. */
 const DEPLOY = /(?:^|[\s;&|(/\\])(?:deploy(?:[-_.\w]*)?\.(?:sh|ps1|mjs|js|py)\b|(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?deploy\b|vercel\s+(?:deploy|--prod)\b|netlify\s+deploy\b|fly(?:ctl)?\s+deploy\b|wrangler\s+(?:deploy|publish)\b|firebase\s+deploy\b|kubectl\s+(?:apply|rollout)\b|helm\s+(?:install|upgrade)\b|terraform\s+apply\b|railway\s+up\b|(?:serverless|sls)\s+deploy\b|cdk\s+deploy\b|gcloud\s+(?:app|run)\s+deploy\b|eb\s+deploy\b)/i
 
+/** gh pr create, and gh pr merge, apart (board-hooks.mjs says different things after each). */
+const GH_CREATE = /(?:^|[\s;&|(])gh\s+pr\s+create\b/
+const GH_MERGE = /(?:^|[\s;&|(])gh\s+pr\s+merge\b/
+
+/**
+ * What a shell command ships, for board-hooks.mjs: 'pr_opened' (gh pr
+ * create), 'pr_merged' (gh pr merge), 'deployed' (a deploy), or null. A
+ * command that does more than one counts as the last step: a deploy after a
+ * merge is deployed.
+ */
+export function shipKind(command) {
+  if (typeof command !== 'string') return null
+  if (DEPLOY.test(command)) return 'deployed'
+  if (GH_MERGE.test(command)) return 'pr_merged'
+  if (GH_CREATE.test(command)) return 'pr_opened'
+  return null
+}
+
 /** Whether a shell command commits, pushes, merges, opens or merges a pull request, or deploys. */
 export function isWorkCommand(command) {
   if (typeof command !== 'string') return false
@@ -133,6 +151,13 @@ async function prune(dir, now) {
     const info = await stat(path).catch(() => null)
     if (info !== null && now - info.mtimeMs > KEEP_MS) await rm(path, { force: true }).catch(() => {})
   }
+}
+
+/** Whether this session used a Listspace tool (the note this check keeps); false without the data folder. */
+export async function listspaceInUse(sessionId, env = process.env) {
+  const id = safeId(sessionId)
+  const dir = stateDir(env)
+  return id !== '' && dir !== null && (await exists(join(dir, `${id}.listspace`)))
 }
 
 /**

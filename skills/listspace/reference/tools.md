@@ -38,9 +38,9 @@ Each takes `inbox` (true: suggest, do not change) and `reason` (at most 500 char
 |---|---|
 | `create_item` | `list_id`, `title`, `description` (markdown), `due_date` (YYYY-MM-DD), `position` (`top` or `bottom`), `type` (`item` or `document`); links in it get their previews right after |
 | `update_item` | `item_id`, then only what changes: `title`, `description`, `due_date`, `done`, `label_ids`; on a document `version_note` |
-| `move_item` | `item_id`, `list_id` (may be on another board), `position` or `before_item_id` |
-| `complete_item` | `item_id`: ticks the due date as met. Needs a due date. Finishing work is a move to the `done` list instead |
-| `archive_item` | `item_id`; `archived: false` restores. Only when the user asks |
+| `move_item` | `item_id`, `list_id` (may be on another board), `position` or `before_item_id`. A move into a `done` list ends any claim on the item (`claim_ended` with `agent_name` in the result) |
+| `complete_item` | `item_id`: ticks the due date as met. Needs a due date. Finishing work is a move to the `done` list instead. Ends any claim on the item (`claim_ended`) |
+| `archive_item` | `item_id`; `archived: false` restores. Only when the user asks. Ends any claim on the item (`claim_ended`) |
 | `add_checklist_item` | `item_id`, `text` |
 | `add_comment` | `item_id`, `text` (markdown): progress notes on the item you work on; `attachment_id` puts it on one file of the item (feedback on a design), `anchor` (`quote`, optional `occurrence`) on a passage of a document (a review of a PRD); with `attachment_id`, `pin` (`x`, `y` from 0 to 1, `page` on a PDF) puts it at a spot of an image, and `anchor` with `page` on a passage of a PDF; `parent_id` makes it a reply; `mentions` (user ids from `list_board_members`) mentions people on the board, who are told at once |
 | `send_request` | `item_id`, `to_user_id` (someone on the board), `kind` (`do`, `look`, `question`, `approve`), `message`, `due_date` (needed for `do`). Owner and Edit guests send any kind, Comment guests `question` and `look`. Sends in the user's name: confirm it with the user in one line first. `check: true` sends nothing and returns the receiver's `load` (open requests, items due this week, away until) and a `warning` to put in that line; never a block |
@@ -55,7 +55,7 @@ Each takes `inbox` (true: suggest, do not change) and `reason` (at most 500 char
 | `get_upload_link` | `item_id`, optional `filename`, `replaces_attachment_id`: a one-time link (10 minutes) for `curl --upload-file <file> '<upload_url>'`; the upload answers with the attachment and `sha256`. Level 4; no `inbox` |
 | `restore_version` | `item_id`, `version`: puts that version back as a new version; nothing is deleted. Level 4 |
 | `route_item` | `item_id` (in Unsorted), `board_id`, optional `list_id`, `reason`: sorts it onto a board. At level 4 and up it applies; below that, into a done list or with `inbox: true` it waits in that board's Inbox |
-| `record_decision` | `list_id` and `title` (the decision in one sentence; context in `description`), or `item_id` (a short item); `because` (the reason), optional `claim_key`, `source_item_id` (the plan it was found in). Proposed: waits in the Inbox at every level (`outcome: "suggested"`, `confirm_url`), or Confirmed at once when the user says yes on the app's confirm screen (`outcome: "confirmed"`). Decisions off on the board (`decisions.on` false): no decision; `list_id` and `title` add a normal item at your level, `item_id` stays as it is, and the result says `decisions_on: false` |
+| `record_decision` | `list_id` and `title` (the decision in one sentence; context in `description`), or `item_id` (a short item); `because` (the reason), optional `claim_key`, `source_item_id` (the plan it was found in). Proposed: waits in the Inbox at every level (`outcome: "suggested"`, `confirm_url`), or Confirmed at once when the user says yes on the app's confirm screen (`outcome: "confirmed"`). Decisions off on the board (`decisions.on` false): no decision; `list_id` and `title` add a normal item at your level, `item_id` stays as it is, and the result says `decisions_on: false`. Same `claim_key` as a Confirmed decision: accepting replaces it, and the result has `replaces` (`item_id`, `title`, `points`, `not_in_new`) and a `warning`: carry over what still holds, or use a new `claim_key` to keep both |
 | `propose_decision_change` | `item_id` (a decision), `change` (`settle`, `replace` or `dispute`), `with_item_id` (for replace and dispute), `because`. Always waits for the user (or the confirm screen for settle and replace). At most 5 wait per board. Refused on a board with decisions off |
 
 Every attach answer has `sha256`, the SHA-256 of the stored bytes.
@@ -122,10 +122,10 @@ Need level 4 (Act); below it they are refused, since a claim cannot wait in the 
 | Tool | Fields | Result |
 |---|---|---|
 | `next_item` | `board_id`; optional `kinds` (default `["todo", "backlog"]`), `label_ids` (all must match), `move_to_doing` (default true), `ttl_minutes` (5 to 1440, default 120) | `outcome: "claimed"` with `item` (description as markdown, checklists, `claim`), `expires_at`, `moved_to` (null: not moved, `note` says why) and `undo`; or `outcome: "empty"` with `message` |
-| `claim_item` | `item_id`, optional `ttl_minutes` | `claimed` or `renewed` with `expires_at`; or `taken` with `claimed_by` (`agent_name`, `expires_at`): do not work on it |
-| `release_item` | `item_id` | `released` or `not_claimed`; `taken` when another agent holds it |
+| `claim_item` | `item_id`, optional `ttl_minutes` | `claimed` or `renewed` with `expires_at`, plus `moved_to` and `undo` when it moved the item from a capture, backlog or to do list to the top of the doing list (left out when nothing moved); or `taken` with `claimed_by` (`agent_name`, `expires_at`): do not work on it |
+| `release_item` | `item_id` | `released` or `not_claimed`; `taken` when another agent holds it. The item stays in its list. For an item you stop without finishing: a move into a `done` list, completing or archiving already ends the claim |
 
-Items in `get_item`, `get_board` and `start_session` carry `claim`: null, or `agent_name`, `claimed_at`, `expires_at` and `yours`. A claim runs out at `expires_at` unless you write on the item or claim it again.
+Items in `get_item`, `get_board` and `start_session` carry `claim`: null, or `agent_name`, `claimed_at`, `expires_at` and `yours`. A claim runs out at `expires_at` unless you write on the item or claim it again. It ends when the item moves into a `done` list, is completed or is archived, by you, another agent or the user in the app; undo of that change does not bring it back.
 
 ## Results
 

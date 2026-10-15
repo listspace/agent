@@ -2,7 +2,11 @@
 
 One version runs through the CLI, the skill and the Claude Code plugin, so each entry covers all three.
 
-## Unreleased
+## 0.4.0
+
+- The Claude Code plugin adds the board rules back to Claude's context (`hooks/board-hooks.mjs`): at the start of a session it names the project's board and says to start from it; after a compaction it says to look up the open work (`claimed_by_you`, `started_by_you`) and update it before going on; after `gh pr create`, `gh pr merge` or a deploy it says to move the matching item and comment. Only in a project with a `Listspace board:` line or a session that uses Listspace. Context only, it never blocks a command.
+
+## 0.3.0
 
 - The Claude Code plugin has a progress check (`hooks/progress-check.mjs`): when a turn in a session that uses Listspace changed files, committed, pushed, opened or merged a pull request or deployed, and made no Listspace write after that work, Claude is sent back once to move the item and add a short comment. At most once every 3 turns, never twice in a row. It keeps only the facts, no command or file name.
 - The skill and `AGENTS.md.snippet` say that work tracked elsewhere, such as a pull request or a deploy, still moves the matching item with a short comment, and the skill reads the server's `reminder` and `claimed_by_you`. It also offers an optional line for the project's CLAUDE.md or AGENTS.md that asks every agent to keep the board up to date.

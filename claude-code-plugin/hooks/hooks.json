@@ -1,6 +1,13 @@
 {
-  "description": "Listspace checks. Decision check: when the user decides something in a session that uses Listspace and no decision was recorded, Claude is sent back once to check and record it as Proposed. Progress check: when a turn in a session that uses Listspace changed files, committed, pushed, opened or merged a pull request or deployed, and told the board nothing, Claude is sent back once to move the item and add a short comment. Each command ends in exit 0, so a computer without Node.js shows no hook error.",
+  "description": "Listspace checks. Decision check: when the user decides something in a session that uses Listspace and no decision was recorded, Claude is sent back once to check and record it as Proposed. Progress check: when a turn in a session that uses Listspace changed files, committed, pushed, opened or merged a pull request or deployed, and told the board nothing, Claude is sent back once to move the item and add a short comment. Board context: at the start of a session and after a compaction, in a project that names its Listspace board or a session that uses Listspace, Claude gets the board rule and is told to start from the board or to look up its open work; after a command that opens or merges a pull request or deploys, one line says to move the item and comment. Context only, it never blocks. Each command ends in exit 0, so a computer without Node.js shows no hook error.",
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/board-hooks.mjs\" session; exit 0", "timeout": 5 }
+        ]
+      }
+    ],
     "UserPromptSubmit": [
       {
         "hooks": [
@@ -19,6 +26,12 @@
         "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash|PowerShell|mcp__plugin_listspace_listspace__.*|mcp__listspace__.*",
         "hooks": [
           { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/progress-check.mjs\" tool; exit 0", "timeout": 5 }
+        ]
+      },
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/board-hooks.mjs\" ship; exit 0", "timeout": 5 }
         ]
       }
     ],

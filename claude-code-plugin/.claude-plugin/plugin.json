@@ -1,7 +1,7 @@
 {
   "name": "listspace",
   "displayName": "Listspace",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "The agentic project memory: start each session from your Listspace board, capture ideas and bugs, move work to Doing and Done, and respect the board's agent access level.",
   "author": {
     "name": "Yellow House Digital",

@@ -100,6 +100,17 @@ A second check at the end of each turn (`hooks/progress-check.mjs`) keeps the bo
 - It keeps only the facts (work done, board updated, the turn of the last nudge) in the plugin's data folder, never a command or a file name, and removes them after a week. Same Node.js and `; exit 0` rules as the decision check.
 - Tests: `node --test agent/scripts/progress-check.test.mjs`.
 
+#### Board context
+
+The board rules arrive with the Listspace server's instructions at the start of a session, and a long session, most of all one whose conversation was compacted, can lose them. `hooks/board-hooks.mjs` adds them back to Claude's context at the moments that matter. It only adds context: it never blocks anything and never changes a command or its output.
+
+- **Session start** (SessionStart: startup, resume, clear): one line that names the project's board and says to start with `get_account` and `start_session`, update the items in `unfinished_from_last_sessions` first, and keep the board current.
+- **After a compaction** (SessionStart with source `compact`): the board rule, and to call `get_account` (or `start_session`) before going on, since `claimed_by_you` and `started_by_you` list the items Claude was working on.
+- **After a pull request or a deploy** (PostToolUse on Bash and PowerShell): after `gh pr create`, `gh pr merge` or a deploy command that worked, one line says to move the matching item (to Doing for a new pull request, to Done after a merge or a deploy) and add a short comment.
+- It does this only in a project whose CLAUDE.md or AGENTS.md has a `Listspace board:` line (in the folder or one above it, up to the repository root), or in a session that used a Listspace tool (the progress check's note). From the file it takes only a link to a Listspace board, never other text.
+- It writes nothing and makes no network call. Same Node.js and `; exit 0` rules as the decision check.
+- Tests: `node --test agent/scripts/board-hooks.test.mjs`.
+
 ## What is left out, and why
 
 - **`comment`**: the API has it (`POST /v1/items/:id/comments`, MCP `add_comment`), but the CLI does not yet. Agents on the CLI log progress in a Project info item (the skill says so). `attach` is in the CLI since 0.2.0, because a file on disk is the one thing an agent cannot send reliably through MCP.
@@ -110,7 +121,7 @@ A second check at the end of each turn (`hooks/progress-check.mjs`) keeps the bo
 ## Publishing
 
 1. **Skill via `npx skills add`**: published. The public repository `listspace/agent` holds this folder at its root, so `npx skills add listspace/agent` works.
-2. **CLI on npm**: published as the unscoped `listspace` (0.3.0). To release a new version: bump the one version (see "Editing the skill"), check the package contents with `npm pack --dry-run`, then `npm publish` from `agent/cli` with an npm account with 2FA. `prepublishOnly` runs the type check, tests and build.
+2. **CLI on npm**: published as the unscoped `listspace` (0.4.0). To release a new version: bump the one version (see "Editing the skill"), check the package contents with `npm pack --dry-run`, then `npm publish` from `agent/cli` with an npm account with 2FA. `prepublishOnly` runs the type check, tests and build.
 3. **Claude Code plugin**: the public repo doubles as a marketplace (`.claude-plugin/marketplace.json`), so users run `/plugin marketplace add listspace/agent` and `/plugin install listspace@listspace`. Listing in Anthropic's plugin directory is a separate submission; the owner decides on it, with privacy policy and terms URLs for that listing.
 
 Sources: Claude Code plugin manifest reference (https://code.claude.com/docs/en/plugins-reference), plugin loading and `--plugin-dir` (https://code.claude.com/docs/en/plugins/loading), marketplace reference (https://code.claude.com/docs/en/plugins/marketplace-reference), skills (https://code.claude.com/docs/en/skills), Agent Skills specification (https://agentskills.io/specification), the skills CLI (https://github.com/vercel-labs/skills), and Postiz's agent repo as the model (https://github.com/gitroomhq/postiz-agent).

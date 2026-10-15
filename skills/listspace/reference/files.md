@@ -34,6 +34,7 @@ One link takes one file, once, within 10 minutes. A used or expired link answers
 - No shell (a chat app such as Claude or ChatGPT) and a file the user already has: ask the user to drop the file on the item in the Listspace app.
 - A tiny text file you wrote yourself: `attach_file` with base64 is fine.
 - Every attach answer has `sha256`, the SHA-256 of the stored bytes: compare it with your copy when it matters.
+- Every file is checked for viruses after it is added. The answer's `virus_scan` is `clean`, `checking` (other people can open it once the check is done, usually within a minute), `not_checked` (it could not be checked, for example a locked zip: only you can open it) or `blocked` (a virus was found: nobody can open it). Tell the user when a file comes back `blocked`.
 - Later: chunked uploads for sandboxes that cannot reach listspace.app. Until then, use `attach_document` or ask the user to drop the file in the app.
 
 ## A new version of a file

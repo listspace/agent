@@ -3,7 +3,7 @@ name: listspace
 description: Project memory for coding agents in Listspace boards. Use when the user works on a project that has a Listspace board, asks you to remember, track or plan work, capture ideas or bugs, pick up where the last session stopped, work through a board's items on its own, asks "what is on my plate" or "handle my tasks for today", asks someone on a board for something ("can Sara check this by Friday?"), or mentions Listspace. Covers the session start, where items go, requests to people, agent access and the Inbox, claiming items, through the Listspace MCP tools or the listspace CLI.
 metadata:
   author: Yellow House Digital
-  version: "0.3.0"
+  version: "0.4.0"
 ---
 
 # Listspace: project memory
@@ -49,8 +49,9 @@ Do this while you work with the user, without being asked. When the user wrote n
 - When an idea, bug, question or decision comes up, capture it as an item. A decision gets its reason.
 - Move an item to a doing list when you start it and to a done list when it is finished, and add a short comment on what you did (`add_comment`).
 - When your work is tracked elsewhere, such as a pull request or a deploy, still move the matching item and add a short comment.
-- A result with `reminder` names items you claimed and left alone for a while (`get_account` and `start_session` list them as `claimed_by_you`). Act on it: move each finished one to Done with a comment, or `release_item` the ones you are not working on.
-- At the end of a session, leave a short summary of it on the board, for the next session to start from (`end_session`).
+- A result with `board_reminder` names items you claimed or put in Doing and then left alone for 30 minutes (`get_account` and `start_session` list your open work as `claimed_by_you` and `started_by_you`). Act on it before you go on: move each finished one to Done with a comment, comment on the ones still going, and `release_item` a claimed one you stopped. It is easy to forget after your context is summarized, which is why the server repeats it.
+- When `start_session` returns `unfinished_from_last_sessions`, an earlier session left those items open. Before new work, check whether each one was done (`git log`, pull requests, deploys): move what is finished to Done with a comment, comment on what is still going, and ask the user only when you cannot tell. Fix the board instead of reporting the items as stale.
+- At the end of a session, leave a short summary of it on the board, for the next session to start from (`end_session`). Its `still_open` lists what you leave open: finish or comment on each one.
 - Your agent access level decides what applies directly; when you are unsure, send the change to the Inbox.
 
 ## During work
@@ -68,7 +69,7 @@ Do this while you work with the user, without being asked. When the user wrote n
 
 "What is on my plate?": call `my_items` (CLI: none yet; use MCP) and answer from it, grouped as it is: overdue, today, this week, later, no date. It is the user's For you: items due, items agents are working on, and suggestions waiting in the Inbox.
 
-"Handle my tasks for today" or "work through To do on the website board": work the list. Take today's items from `my_items` with `needs_action: true` (only `kind: "do"`; `kind: "inbox"` entries wait for the user's own decision), or the named list from `get_board` (`next_item` for a board's to do list). Skip what needs a human (approvals, calls, payments, signatures, decisions) and items another agent holds (`from.yours` false). For each item you can do: `claim_item`, do the work, `add_comment` with what you did, move it to Done or `complete_item` (with `inbox: true` when `allowed` says `inbox`), `release_item`. When you need the user's answer, do not wait in the chat: `add_comment` on the item with `inbox: true` and the question as the `reason`, release it and go on. End with a short report: done, waiting for you, skipped and why. Steps: [reference/autonomy.md](reference/autonomy.md).
+"Handle my tasks for today" or "work through To do on the website board": work the list. Take today's items from `my_items` with `needs_action: true` (only `kind: "do"`; `kind: "inbox"` entries wait for the user's own decision), or the named list from `get_board` (`next_item` for a board's to do list). Skip what needs a human (approvals, calls, payments, signatures, decisions) and items another agent holds (`from.yours` false). For each item you can do: `claim_item`, do the work, `add_comment` with what you did, move it to Done or `complete_item` (with `inbox: true` when `allowed` says `inbox`), which ends your claim; `release_item` only when that waits in the Inbox. When you need the user's answer, do not wait in the chat: `add_comment` on the item with `inbox: true` and the question as the `reason`, release it and go on. End with a short report: done, waiting for you, skipped and why. Steps: [reference/autonomy.md](reference/autonomy.md).
 
 ## Requests to people on the board
 
@@ -88,7 +89,7 @@ The user can give people work without leaving you: "Can Sara check the brief bef
 
 ## Working through the board on your own
 
-Asked to take items one after another, or started by a webhook or schedule: loop `next_item` (claims the top open item, moves it to Doing) -> do the work -> `add_comment` with progress -> move to Done (with `inbox: true` when `allowed.move_item_done` is `inbox`) -> `release_item` -> `next_item`. Stop when it says `empty`, the level refuses, the user says stop, or after the user's limit (else 5 items). Never work on an item another agent has claimed (`claim.yours` false). Release your claims before you stop, then summarize: done, suggested, left, blocked. Needs level 4 (Act). Steps and stop rules: [reference/autonomy.md](reference/autonomy.md).
+Asked to take items one after another, or started by a webhook or schedule: loop `next_item` (claims the top open item, moves it to Doing) -> do the work -> `add_comment` with progress -> move to Done (with `inbox: true` when `allowed.move_item_done` is `inbox`; a move that applies ends the claim, one in the Inbox needs `release_item`) -> `next_item`. Stop when it says `empty`, the level refuses, the user says stop, or after the user's limit (else 5 items). Never work on an item another agent has claimed (`claim.yours` false). Release your claims before you stop, then summarize: done, suggested, left, blocked. Needs level 4 (Act). Steps and stop rules: [reference/autonomy.md](reference/autonomy.md).
 
 ## Feedback requests
 
@@ -116,7 +117,7 @@ A decision is an item with a state. With the user, use the plain words (each dec
 - A decision you record is Proposed until the user accepts it. Say so, and give the link from the result in one line: "Accept it here: <confirm_url>". The board's Inbox lists it too. Never present it as decided before that.
 - "Save the decisions in this plan" (or meeting notes, or any long item): read it, find each separate decision, and propose each with `record_decision`: `list_id` (the info list), `title` (the decision in one sentence), `because`, and `source_item_id` (the plan). The user accepts them all at once. Never mark a whole long item or a document as one decision.
 - A new proposal for the same decision replaces the one waiting. At most 5 proposals to confirm, replace or flag one wait per board (recordings are not capped): when the call is refused, ask the user to review the waiting ones first, and do not retry.
-- The user decided something new on the same question? Record it with `record_decision` and the same `claim_key`: the Inbox shows that it replaces the old one, and accepting does that. When the newer answer is a decision already (Confirmed or Proposed), propose `replace` with it as `with_item_id` instead.
+- The user decided something new on the same question? Record it with `record_decision` and the same `claim_key`: the Inbox shows that it replaces the old one, and accepting does that. Accepting replaces the whole old decision, so the result then has `replaces` (the old decision's `points`, and `not_in_new`: the points your text leaves out) and a `warning`. Carry over every point that still holds and record it again with the same `claim_key` (it takes the place of the waiting one), or use a new `claim_key` when both should stay. The user sees what is dropped and can choose Replace, Keep both or Reject. When the newer answer is a decision already (Confirmed or Proposed), propose `replace` with it as `with_item_id` instead.
 - Something contradicts a Confirmed decision and you are not sure which one holds? Ask the user in the chat. Do not record the other view to start a conflict: accepting it would confirm it. Propose a `dispute` (Conflict) only between two decisions that already exist. Do not edit the Confirmed one; a change to its text waits in the Inbox too.
 - The owner can switch decisions off on a board, and new accounts start with them off. Then `decisions.on` is false in `start_session` and `get_board`: on that board, ask for no confirmations. `record_decision` there records no decision: with `list_id` and `title` it adds a normal item (the reason goes in its description), with `item_id` it leaves the item as it is, and the result says `decisions_on: false`. Tell the user it was added as a normal item. `propose_decision_change` is refused there, and the `decisions` of `end_session` are added as normal items the same way. The decisions already there still count.
 
