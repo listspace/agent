@@ -33,6 +33,12 @@ export const boolean: Decoder<boolean> = (value, path) => {
   return value
 }
 
+/** Any JSON object, kept as it is (a tool's result or input schema). */
+export const record: Decoder<Record<string, unknown>> = (value, path) => {
+  if (!isRecord(value)) throw new DecodeError(path, 'an object')
+  return value
+}
+
 export function literal<const T extends readonly (string | number)[]>(...allowed: T): Decoder<T[number]> {
   return (value, path) => {
     const match = allowed.find((candidate) => candidate === value)

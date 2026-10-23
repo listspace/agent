@@ -144,3 +144,37 @@ export const appliedBody = (extra: Record<string, unknown> = {}) => ({
 export const suggestedBody = {
   data: { outcome: 'suggested', level: level3, message: 'At level 3 this waits in the Inbox.', suggestion: { id: 'sug-1', status: 'pending' } },
 }
+
+// ---- The MCP server (https://mcp.listspace.app, path /) ----
+
+/** A tool's answer: its structured result, or an error the tool returned (isError). */
+export type ToolReply = { readonly result: Record<string, unknown> } | { readonly error: string }
+
+/** Tools as the fake MCP server lists them. */
+export const toolsListed = [
+  { name: 'get_item', title: 'Get an item', description: 'One item in full. Its comments too.', inputSchema: { type: 'object', properties: { item_id: { type: 'string' } }, required: ['item_id'] } },
+  { name: 'add_comment', title: 'Comment on an item', description: 'Add a comment (markdown) to an item.', inputSchema: { type: 'object', properties: { item_id: { type: 'string' }, text: { type: 'string' } } } },
+]
+
+/**
+ * The route for `POST /` on the MCP host: answers tools/list from
+ * toolsListed and tools/call from `tools`, by tool name, as JSON-RPC.
+ */
+export function mcpRoute(tools: Record<string, (args: Record<string, unknown>) => ToolReply>): (sent: Sent) => Reply {
+  return (sent) => {
+    const message = sent.body
+    if (typeof message !== 'object' || message === null || !('method' in message)) return { status: 400 }
+    const id = 'id' in message ? message.id : null
+    if (message.method === 'tools/list') return { body: { jsonrpc: '2.0', id, result: { tools: toolsListed } } }
+    const params = 'params' in message && typeof message.params === 'object' && message.params !== null ? message.params : {}
+    const name = 'name' in params && typeof params.name === 'string' ? params.name : ''
+    const args = 'arguments' in params && typeof params.arguments === 'object' && params.arguments !== null ? { ...params.arguments } : {}
+    const tool = tools[name]
+    if (tool === undefined) return { body: { jsonrpc: '2.0', id, error: { code: -32602, message: `Unknown tool: ${name}` } } }
+    const reply = tool(args)
+    const result = 'error' in reply
+      ? { content: [{ type: 'text', text: reply.error }], isError: true }
+      : { content: [{ type: 'text', text: JSON.stringify(reply.result) }], structuredContent: reply.result, isError: false }
+    return { body: { jsonrpc: '2.0', id, result } }
+  }
+}

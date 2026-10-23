@@ -2,6 +2,17 @@
 
 One version runs through the CLI, the skill and the Claude Code plugin, so each entry covers all three.
 
+## 0.5.0
+
+- New command `listspace call <tool> ['<json>']`: runs any tool of the Listspace MCP server by name, with its arguments as one JSON object, for example `listspace call get_item --json '{"item_id": "..."}'`. It goes to the MCP server with the same token, so the tools, the agent access level checks and the results are the same as for an MCP client, and a new tool works without a CLI update. A tool that refuses (a level, a wrong argument) exits 1 with `error.kind` `tool`. A call with an `idempotency_key` is sent once more after a network error or a 502, 503 or 504; one without is sent once.
+- New command `listspace tools`: the tools this token can use, one line each. `listspace tools <name>` shows one tool with its description and input schema.
+- New short commands, each one MCP tool through the same path as `call`: `comment <item> <text>` (`add_comment`), `update <item> [--title] [--description]` (`update_item`), `list add <board> <title> [--kind]` (`create_list`) and `list rename <list> <title>` (`update_list`). They take `--inbox --reason` like the other writes, and the ones that make something send an `idempotency_key`.
+- `listspace new-board` takes `--template <id or name>`: a board from any template in `list_templates`, not only "Project (for agents)".
+- `LISTSPACE_MCP_URL` points `tools`, `call` and the commands built on them at another MCP server.
+- The skill's CLI page lists the new commands and `call`, and `my_items` has a CLI command now (`listspace call my_items`).
+- Safe retries. Every `POST` the CLI sends carries its own `Idempotency-Key`; after a network error or a 502, 503 or 504 it sends the request once more with the same key, so a lost answer (for example while Listspace restarts) never adds a second item. A 503 for maintenance is passed on as before.
+- The skill and `reference/tools.md` tell agents to send `idempotency_key` with every MCP call that makes something, to retry with the same key after a network error or a 5xx, and to check before making it again when they sent none. Results with `replayed: true` are the first result, not a new change.
+
 ## 0.4.0
 
 - The Claude Code plugin adds the board rules back to Claude's context (`hooks/board-hooks.mjs`): at the start of a session it names the project's board and says to start from it; after a compaction it says to look up the open work (`claimed_by_you`, `started_by_you`) and update it before going on; after `gh pr create`, `gh pr merge` or a deploy it says to move the matching item and comment. Only in a project with a `Listspace board:` line or a session that uses Listspace. Context only, it never blocks a command.

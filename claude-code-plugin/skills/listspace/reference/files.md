@@ -10,7 +10,7 @@ npx listspace attach <item_id> <file> [<file>...] --json
 
 The CLI reads each file from disk, checks it and uploads it to the item. You never handle the bytes. Use it whenever the file is on the computer you run on, even when the Listspace MCP tools are connected: `attach_file` asks you to write the whole file out as base64 in a tool call, which is slow and breaks on anything larger than a few kilobytes.
 
-- One time setup by the user: create a token in Listspace (Settings > Developers, read and write), then run `npx listspace login` and paste it. Never ask for the token in the chat. Exit code 3 means this has not been done yet: ask the user to do it.
+- One time setup by the user: create a token in Listspace (Settings > Your AI > API tokens, read and write), then run `npx listspace login` and paste it. Never ask for the token in the chat. Exit code 3 means this has not been done yet: ask the user to do it.
 - Get the item id from `get_board`, `search_items` or `listspace board <board> --json`.
 - Each file is at most 8 MB and has one of these extensions: jpg, jpeg, png, gif, webp, svg, pdf, txt, md, markdown, csv, doc, docx, xls, xlsx, ppt, pptx, zip, rar, 7z, mp3, wav, ogg, mp4, mpeg, mpg, mov, json, js, html, htm, css. Every file is checked before the first one is sent, so a wrong path uploads nothing.
 - It needs level 4 (Act) on the board. A file cannot wait in the Inbox: below level 4 the API refuses it (exit 1). Tell the user; do not try another route.
@@ -31,11 +31,22 @@ One link takes one file, once, within 10 minutes. A used or expired link answers
 
 - A file on the web: `attach_url` with its public https address. Listspace downloads it.
 - A document you write yourself (a report, a quote, notes) as a PDF, a Word file or markdown: `attach_document` with `format` (`pdf`, `docx` or `md`), a `title` and the text as markdown in `content`. Listspace makes the file and attaches it; you never handle bytes. This works in chat apps too. `from_item: true` makes the file from the item's own description or document instead, so you do not send the text again.
-- No shell (a chat app such as Claude or ChatGPT) and a file the user already has: ask the user to drop the file on the item in the Listspace app.
+- In ChatGPT, a file the user put in the chat: `attach_chat_file` with `item_id` and the file as `file`, one call per file. ChatGPT passes the file's download link and Listspace downloads it; the code sandbox there cannot reach listspace.app, so never try `get_upload_link` and curl in ChatGPT. When the call says ChatGPT did not hand the file over (the phone apps can do this), ask the user to attach it again in ChatGPT on the web or the desktop app, or to drop it on the item in Listspace.
+- Another chat app without a shell (such as Claude on claude.ai) and a file the user already has: ask the user to drop the file on the item in the Listspace app.
 - A tiny text file you wrote yourself: `attach_file` with base64 is fine.
 - Every attach answer has `sha256`, the SHA-256 of the stored bytes: compare it with your copy when it matters.
 - Every file is checked for viruses after it is added. The answer's `virus_scan` is `clean`, `checking` (other people can open it once the check is done, usually within a minute), `not_checked` (it could not be checked, for example a locked zip: only you can open it) or `blocked` (a virus was found: nobody can open it). Tell the user when a file comes back `blocked`.
 - Later: chunked uploads for sandboxes that cannot reach listspace.app. Until then, use `attach_document` or ask the user to drop the file in the app.
+
+## Read a spreadsheet
+
+A budget, a price list or a content calendar on an item: `read_attachment` with `item_id` and `attachment_id` (from `list_attachments`) gives the file as text, each sheet as CSV. It reads .xlsx, .xlsm, .xls and .ods workbooks and CSV or TSV files.
+
+- `sheet_names` lists every sheet; `sheet` reads one sheet by name.
+- Each cell is the value as the sheet shows it. A formula gives the result the file saved; formulas and macros never run.
+- At most the first 1000 rows and 100 columns of each sheet, and 200000 characters in all. `truncated` says something was left out and `range` gives the full size of the sheet (such as `A1:F5432`). For the whole file, download it with its link from `list_attachments`.
+- Files up to 10 MB. A file that is still being checked for viruses opens only for whoever added it, and a blocked file never opens.
+- Other files (PDF, Word, images) are not read this way: open them with their link.
 
 ## A new version of a file
 

@@ -52,7 +52,7 @@ export interface Output {
  */
 export type InboxChoice = { readonly kind: 'direct'; readonly reason: string | null } | { readonly kind: 'inbox'; readonly reason: string }
 
-const inboxFields = (choice: InboxChoice): Record<string, unknown> => {
+export const inboxFields = (choice: InboxChoice): Record<string, unknown> => {
   switch (choice.kind) {
     case 'inbox':
       return { inbox: true, reason: choice.reason }
@@ -148,13 +148,14 @@ export async function boardCommand(client: ApiClient, input: { board: string }):
 
 export async function newBoardCommand(
   client: ApiClient,
-  input: { title: string; description: string | null; space: string | null },
+  input: { title: string; description: string | null; space: string | null; templateId: string | null },
 ): Promise<Output> {
   // No template_id and no lists: the server uses "Project (for agents)"
   const body = {
     title: input.title,
     ...(input.description === null ? {} : { description: input.description }),
     ...(input.space === null ? {} : { space_id: input.space }),
+    ...(input.templateId === null ? {} : { template_id: input.templateId }),
   }
   const answer = await client.data('POST', '/boards', createdBoard, { body })
   return { raw: answer.raw, text: formatCreatedBoard(answer.value) }

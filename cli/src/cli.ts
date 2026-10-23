@@ -3,7 +3,7 @@
 
 import { parseArgs } from 'node:util'
 
-import { ApiClient, CliFailure, DEFAULT_API_URL, LOGIN_HINT, fail, parseToken, type ApiToken, type CliError, type FetchFn } from './api.js'
+import { ApiClient, CliFailure, DEFAULT_API_URL, DEFAULT_MCP_URL, LOGIN_HINT, fail, parseToken, type ApiToken, type CliError, type FetchFn } from './api.js'
 import {
   INBOX_STATUSES,
   accountCommand,
@@ -27,6 +27,16 @@ import {
   type Output,
   type ReadFile,
 } from './commands.js'
+import {
+  callCommand,
+  commentCommand,
+  listAddCommand,
+  listRenameCommand,
+  parseToolArgs,
+  resolveTemplateId,
+  toolsCommand,
+  updateCommand,
+} from './tools.js'
 import { configDir, loadToken, removeToken, saveToken, type Env } from './config.js'
 import { LIST_KINDS, account, type ListKind } from './schema.js'
 import { VERSION } from './version.js'
@@ -49,7 +59,7 @@ export const HELP = `listspace ${VERSION}: Listspace from the command line, for 
 Usage: listspace <command> [arguments] [--json]
 
 Sign in
-  login [--token ls_...]    Save a personal token (Listspace: Settings > Developers).
+  login [--token ls_...]    Save a personal token (Listspace: Settings > Your AI > API tokens).
                             Without --token it reads the token from stdin.
   logout                    Forget the saved token.
   whoami                    Plan, agent access, guidance and boards (alias: account).
@@ -62,16 +72,28 @@ Read
   inbox <board> [--status pending|accepted|rejected|withdrawn|expired|failed|all]
 
 Write (the board's agent access level decides what is made and what waits in the Inbox)
-  new-board <title> [--description <text>] [--space <space id>]
-                            A board from "Project (for agents)". With more than
-                            one space (see whoami), ask the user which one and
-                            pass --space; without it the board goes to the
-                            default space.
+  new-board <title> [--template <id or name>] [--description <text>] [--space <space id>]
+                            A board from the template (default "Project (for
+                            agents)"). With more than one space (see whoami),
+                            ask the user which one and pass --space; without
+                            it the board goes to the default space.
   add <board> <list> <title> [--description <markdown>]
+  update <item> [--title <text>] [--description <markdown>]
+  comment <item> <text>     Add a comment (markdown) to an item.
   move <item> <list>
   done <item>               Move to the board's done list.
+  list add <board> <title> [--kind info|capture|backlog|todo|doing|done]
+  list rename <list> <title>   Here <list> is a list id.
   undo <request_id>         Take back one of your own calls.
   Writes take --inbox --reason "<why>" to suggest instead of change.
+
+Every MCP tool (the same tools, levels and results as the MCP server)
+  tools                     The tools this token can use, one line each.
+  tools <name>              One tool: what it does and its arguments.
+  call <tool> ['<json>']    Run a tool with its arguments as one JSON object,
+                            for example: call get_item --json '{"item_id": "..."}'
+                            Give a call that makes something an
+                            idempotency_key, so a retry never makes it twice.
 
 Files from this computer (needs level 4, Act; a file cannot wait in the Inbox)
   attach <item> <file> [<file>...]
@@ -95,12 +117,14 @@ Work on your own (needs level 4, Act; other agents leave a claimed item alone)
 info, capture, backlog), <item> an item id.
 
 Options
-  --json      Print the API's JSON (for agents and scripts).
+  --json      Print the server's JSON (for agents and scripts).
   --help      This help.  --version  The version.
 
 Environment
   LISTSPACE_TOKEN        A token for this run (wins over the saved one).
   LISTSPACE_API_URL      Default ${DEFAULT_API_URL}
+  LISTSPACE_MCP_URL      Default ${DEFAULT_MCP_URL} (for tools, call and the
+                         commands built on them).
   LISTSPACE_CONFIG_DIR   Where credentials.json is kept.
 
 Exit codes: 0 ok, 1 failed, 2 usage, 3 sign in needed, 4 rate limited (wait and retry).`
@@ -112,6 +136,7 @@ const EXIT: Record<CliError['kind'], number> = {
   api: 1,
   network: 1,
   unexpected: 1,
+  tool: 1,
 }
 
 const OPTIONS = {
@@ -120,7 +145,10 @@ const OPTIONS = {
   version: { type: 'boolean', short: 'v' },
   token: { type: 'string' },
   description: { type: 'string' },
+  title: { type: 'string' },
   space: { type: 'string' },
+  template: { type: 'string' },
+  kind: { type: 'string' },
   inbox: { type: 'boolean' },
   reason: { type: 'string' },
   status: { type: 'string' },
@@ -184,7 +212,7 @@ async function clientFor(io: Io, dir: string): Promise<ApiClient> {
   switch (source.kind) {
     case 'env':
     case 'file':
-      return new ApiClient({ baseUrl: apiUrl(io.env), token: source.token, fetch: io.fetch })
+      return new ApiClient({ baseUrl: apiUrl(io.env), mcpUrl: mcpUrl(io.env), token: source.token, fetch: io.fetch })
     case 'none':
       return fail({ kind: 'auth', message: `Not signed in. ${LOGIN_HINT}` })
     case 'invalid':
@@ -201,6 +229,20 @@ const apiUrl = (env: Env): string => {
   return url !== undefined && url !== '' ? url : DEFAULT_API_URL
 }
 
+const mcpUrl = (env: Env): string => {
+  const url = env.LISTSPACE_MCP_URL
+  return url !== undefined && url !== '' ? url : DEFAULT_MCP_URL
+}
+
+/** --kind for `list add`: one of the list kinds, or none. */
+function listKindFrom(flags: Flags): ListKind | null {
+  if (flags.kind === undefined) return null
+  const wanted = flags.kind.trim().toLowerCase()
+  const kind = LIST_KINDS.find((candidate) => candidate === wanted)
+  if (kind === undefined) return usage(`--kind is one of ${LIST_KINDS.join(', ')}.`)
+  return kind
+}
+
 /**
  * How `login` gets its token. Today: --token, or a token typed or piped in.
  * TODO(PR 9, device pairing): without --token, start pairing instead (show a
@@ -212,7 +254,7 @@ type LoginMethod = { readonly kind: 'token'; readonly raw: string } | { readonly
 
 async function loginMethod(flags: Flags, io: Io): Promise<LoginMethod> {
   if (flags.token !== undefined) return { kind: 'token', raw: flags.token }
-  const typed = await io.readSecret('Paste a personal token from Listspace (Settings > Developers): ')
+  const typed = await io.readSecret('Paste a personal token from Listspace (Settings > Your AI > API tokens): ')
   if (typed === null || typed.trim() === '') return { kind: 'pairing' }
   return { kind: 'token', raw: typed }
 }
@@ -241,7 +283,7 @@ async function dispatch(command: string, args: readonly string[], flags: Flags, 
     case 'logout': {
       positionals(command, args, [])
       const removed = await removeToken(dir)
-      return { raw: { signed_out: removed }, text: removed ? 'Signed out: the saved token is gone (revoke it in Settings > Developers if it leaked).' : 'No saved token.' }
+      return { raw: { signed_out: removed }, text: removed ? 'Signed out: the saved token is gone (revoke it in Settings > Your AI > API tokens if it leaked).' : 'No saved token.' }
     }
     case 'whoami':
     case 'account':
@@ -260,7 +302,46 @@ async function dispatch(command: string, args: readonly string[], flags: Flags, 
     }
     case 'new-board': {
       const [title] = positionals(command, args, ['title'])
-      return newBoardCommand(await clientFor(io, dir), { title, description: flags.description ?? null, space: flags.space ?? null })
+      const client = await clientFor(io, dir)
+      const templateId = flags.template === undefined ? null : await resolveTemplateId(client, flags.template)
+      return newBoardCommand(client, { title, description: flags.description ?? null, space: flags.space ?? null, templateId })
+    }
+    case 'call': {
+      // `call <tool> --json '<args>'`: --json is the output flag, so the arguments arrive as the second positional
+      const [tool, raw, ...extra] = args
+      if (tool === undefined || extra.length > 0) return usage("`call` takes <tool> and at most one JSON object of arguments (in single quotes).")
+      const toolArgs = parseToolArgs(raw)
+      return callCommand(await clientFor(io, dir), { tool, args: toolArgs })
+    }
+    case 'tools': {
+      if (args.length > 1) return usage('`tools` takes no arguments, or one tool name.')
+      return toolsCommand(await clientFor(io, dir), { name: args[0] ?? null })
+    }
+    case 'comment': {
+      const [item, text] = positionals(command, args, ['item', 'text'])
+      const choice = choiceFrom(flags)
+      return commentCommand(await clientFor(io, dir), { item, text, choice })
+    }
+    case 'update': {
+      const [item] = positionals(command, args, ['item'])
+      const choice = choiceFrom(flags)
+      return updateCommand(await clientFor(io, dir), { item, title: flags.title ?? null, description: flags.description ?? null, choice })
+    }
+    case 'list': {
+      const [sub, ...rest] = args
+      switch (sub) {
+        case 'add': {
+          const [board, title] = positionals('list add', rest, ['board', 'title'])
+          const input = { board, title, kind: listKindFrom(flags), choice: choiceFrom(flags) }
+          return listAddCommand(await clientFor(io, dir), input)
+        }
+        case 'rename': {
+          const [list, title] = positionals('list rename', rest, ['list', 'title'])
+          return listRenameCommand(await clientFor(io, dir), { list, title, choice: choiceFrom(flags) })
+        }
+        default:
+          return usage('`list` takes `add <board> <title>` or `rename <list> <title>`.')
+      }
     }
     case 'add': {
       const [board, list, title] = positionals(command, args, ['board', 'list', 'title'])
@@ -357,6 +438,8 @@ function errorJson(error: CliError): Record<string, unknown> {
       return { kind: error.kind, status: error.status, code: error.code, message: error.message }
     case 'rate_limited':
       return { kind: error.kind, message: error.message, retry_after_seconds: error.retryAfterSeconds }
+    case 'tool':
+      return { kind: error.kind, tool: error.tool, message: error.message, ...(error.details === null ? {} : { details: error.details }) }
     case 'usage':
     case 'auth':
     case 'network':

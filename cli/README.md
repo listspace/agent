@@ -1,6 +1,6 @@
 # listspace
 
-The command line for [Listspace](https://listspace.app), the project board your AI agents keep up to date. People and coding agents use it to read boards, add and move items, work through a board on their own, and undo their own changes. It talks to the Listspace REST API (`https://api.listspace.app/v1`).
+The command line for [Listspace](https://listspace.app), the project board your AI agents keep up to date. People and coding agents use it to read boards, add and move items, work through a board on their own, and undo their own changes. It talks to the Listspace REST API (`https://api.listspace.app/v1`), and `call` runs any tool of the Listspace MCP server (`https://mcp.listspace.app`) with the same token.
 
 Node 20 or later. No runtime dependencies.
 
@@ -20,7 +20,7 @@ npm install -g listspace
 
 ## Sign in
 
-Create a personal token in Listspace under **Settings > Developers**, then save it:
+Create a personal token in Listspace under **Settings > Your AI > API tokens**, then save it:
 
 ```bash
 npx listspace login --token ls_...
@@ -38,7 +38,7 @@ The token is saved as `credentials.json` (mode 600) in your OS config directory:
 
 ```text
 Sign in
-  login [--token ls_...]    Save a personal token (Listspace: Settings > Developers).
+  login [--token ls_...]    Save a personal token (Listspace: Settings > Your AI > API tokens).
   logout                    Forget the saved token.
   whoami                    Plan, agent access, guidance and boards (alias: account).
 
@@ -50,15 +50,25 @@ Read
   inbox <board> [--status pending|accepted|rejected|withdrawn|expired|failed|all]
 
 Write (the board's agent access level decides what is made and what waits in the Inbox)
-  new-board <title> [--description <text>] [--space <space id>]
-                            With more than one space (see whoami), ask the user
-                            which one and pass --space; without it the board
-                            goes to the default space.
+  new-board <title> [--template <id or name>] [--description <text>] [--space <space id>]
+                            Default template "Project (for agents)". With more
+                            than one space (see whoami), ask the user which one
+                            and pass --space; without it the board goes to the
+                            default space.
   add <board> <list> <title> [--description <markdown>]
+  update <item> [--title <text>] [--description <markdown>]
+  comment <item> <text>     Add a comment (markdown) to an item.
   move <item> <list>
   done <item>               Move to the board's done list.
+  list add <board> <title> [--kind info|capture|backlog|todo|doing|done]
+  list rename <list> <title>   Here <list> is a list id.
   undo <request_id>         Take back one of your own calls.
   Writes take --inbox --reason "<why>" to suggest instead of change.
+
+Every MCP tool (the same tools, levels and results as the MCP server)
+  tools                     The tools this token can use, one line each.
+  tools <name>              One tool: what it does and its arguments.
+  call <tool> ['<json>']    Run a tool with its arguments as one JSON object.
 
 Files from this computer (needs level 4, Act)
   attach <item> <file> [<file>...]   At most 8 MB each.
@@ -77,6 +87,25 @@ Example:
 npx listspace session "Website"
 npx listspace add "Website" ideas "Try dark mode" --description "Seen in **settings**"
 ```
+
+## Every MCP tool: `call`
+
+The short commands above cover what people type often. Everything else the Listspace MCP server can do works too, by the tool's name, with its arguments as one JSON object:
+
+```bash
+npx listspace tools                     # every tool this token can use, one line each
+npx listspace tools record_decision     # what it does and its arguments (JSON Schema)
+npx listspace call my_items
+npx listspace call get_item --json '{"item_id": "2b6f0c1e-..."}'
+```
+
+`call` sends the call to the MCP server with your token, so it has the same tools, the same agent access levels and the same results as an MCP client. A read-only token sees only the read tools. A new tool on the server works in the CLI right away, with no update.
+
+With `--json`, the arguments come right after it, and the output is the tool's result as JSON. A refusal, for example a board at level 1 (Read only), exits 1 with `error.kind` `tool` and the server's message.
+
+Give every call that makes something an `idempotency_key`, a new one per call, such as a UUID. The CLI then sends it once more after a network error or a 502, 503 or 504, and the server makes it only once. A call without a key is sent once. The short commands add a key themselves where the tool takes one.
+
+PowerShell treats quotes in JSON differently. On Windows, run these commands from Git Bash, where the quotes work as shown.
 
 ## Attach files
 
@@ -104,6 +133,7 @@ Exit codes: 0 ok, 1 failed, 2 usage error, 3 sign-in needed, 4 rate limited (wai
 |---|---|
 | `LISTSPACE_TOKEN` | A token for this run. It wins over the saved one. |
 | `LISTSPACE_API_URL` | Another API address. Default `https://api.listspace.app/v1`. |
+| `LISTSPACE_MCP_URL` | Another MCP server address, for `tools`, `call` and the commands built on them. Default `https://mcp.listspace.app`. |
 | `LISTSPACE_CONFIG_DIR` | Where `credentials.json` is kept. |
 
 ## What agents may do

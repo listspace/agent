@@ -72,3 +72,67 @@ test('errorFor: 401 points at login, 429 reads Retry-After, 403 scope explains r
   const odd = errorFor(new Response(null, { status: 502 }), '<html>')
   assert.deepEqual(odd, { kind: 'api', status: 502, code: 'unknown', message: 'Listspace answered 502.' })
 })
+
+test('a POST carries an Idempotency-Key; GET does not', async () => {
+  const api = fakeApi({ 'GET /account': { body: accountBody }, 'POST /account': { body: accountBody } })
+  const client = new ApiClient({ baseUrl: 'https://api.example.test/v1', token: token(), fetch: api.fetch, newKey: () => 'key-1' })
+  await client.data('GET', '/account', account)
+  await client.data('POST', '/account', account, { body: {} })
+  assert.equal(api.sent[0]?.headers.get('Idempotency-Key'), null)
+  assert.equal(api.sent[1]?.headers.get('Idempotency-Key'), 'key-1')
+})
+
+test('a lost answer to a POST (502, or no connection) is retried once with the same key', async () => {
+  let calls = 0
+  const api = fakeApi({
+    'POST /account': () => (++calls === 1 ? { status: 502 } : { body: accountBody }),
+  })
+  const waits: number[] = []
+  const keys = ['key-a', 'key-b']
+  const client = new ApiClient({
+    baseUrl: 'https://api.example.test/v1',
+    token: token(),
+    fetch: api.fetch,
+    newKey: () => keys.shift() ?? 'none',
+    sleep: async (ms) => {
+      waits.push(ms)
+    },
+  })
+  const answer = await client.data('POST', '/account', account, { body: { title: 'x' } })
+  assert.equal(answer.value.plan.name, 'Free')
+  assert.equal(api.sent.length, 2)
+  assert.deepEqual(api.sent.map((s) => s.headers.get('Idempotency-Key')), ['key-a', 'key-a'])
+  assert.equal(waits.length, 1)
+
+  let tries = 0
+  const flaky = new ApiClient({
+    baseUrl: 'https://api.example.test/v1',
+    token: token(),
+    newKey: () => 'key-c',
+    sleep: async () => {},
+    fetch: async (url, init) => {
+      if (++tries === 1) throw new TypeError('socket hang up')
+      return api.fetch(url, init)
+    },
+  })
+  await flaky.data('POST', '/account', account, { body: {} })
+  assert.equal(tries, 2)
+  assert.equal(api.sent.at(-1)?.headers.get('Idempotency-Key'), 'key-c')
+})
+
+test('no retry for GET, for a 4xx, or for a 503 during maintenance', async () => {
+  const maintenance = { status: 503, body: { error: { code: 'maintenance', message: 'Back at 10:00.' } } }
+  const api = fakeApi({
+    'GET /account': { status: 502 },
+    'POST /bad': { status: 400, body: { error: { code: 'invalid_request', message: 'No.' } } },
+    'POST /down': maintenance,
+  })
+  const client = new ApiClient({ baseUrl: 'https://api.example.test/v1', token: token(), fetch: api.fetch, sleep: async () => {} })
+  await assert.rejects(client.data('GET', '/account', account))
+  await assert.rejects(client.data('POST', '/bad', account, { body: {} }))
+  await assert.rejects(client.data('POST', '/down', account, { body: {} }), (error: unknown) => {
+    assert.ok(error instanceof CliFailure && error.error.kind === 'api' && error.error.code === 'maintenance')
+    return true
+  })
+  assert.deepEqual(api.sent.map((s) => `${s.method} ${s.path}`), ['GET /account', 'POST /bad', 'POST /down'])
+})
