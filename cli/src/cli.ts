@@ -97,9 +97,12 @@ Every MCP tool (the same tools, levels and results as the MCP server)
 
 Files from this computer (needs level 4, Act; a file cannot wait in the Inbox)
   attach <item> <file> [<file>...]
-                            Upload files to an item, at most 8 MB each:
-                            images, PDF, Office files, text, Markdown, CSV,
-                            JSON, archives, audio and video.
+                            Upload files to an item: images, PDF, Office
+                            files, text, Markdown, CSV, JSON, archives, audio
+                            and video. Up to the plan's size of one file
+                            (Free 25 MB, Pro 2 GB, a team's boards 5 GB), at
+                            most 4 GB from here; over 8 MB the file goes
+                            straight to file storage.
 
 Work on your own (needs level 4, Act; other agents leave a claimed item alone)
   next <board> [--kinds todo,backlog] [--label <id>] [--no-move] [--ttl <minutes>]

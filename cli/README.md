@@ -71,7 +71,7 @@ Every MCP tool (the same tools, levels and results as the MCP server)
   call <tool> ['<json>']    Run a tool with its arguments as one JSON object.
 
 Files from this computer (needs level 4, Act)
-  attach <item> <file> [<file>...]   At most 8 MB each.
+  attach <item> <file> [<file>...]   Up to the plan's size of one file, at most 4 GB.
 
 Work on your own (needs level 4, Act)
   next <board> [--kinds todo,backlog] [--label <id>] [--no-move] [--ttl <minutes>]
@@ -115,7 +115,7 @@ PowerShell treats quotes in JSON differently. On Windows, run these commands fro
 npx listspace attach 2b6f0c1e-... ./contract.pdf ./screenshots/footer.png
 ```
 
-The type comes from the extension: images (jpg, png, gif, webp, svg), PDF, Word, Excel and PowerPoint files, text, Markdown, CSV, JSON, archives (zip, rar, 7z), audio and video. Each file can be at most 8 MB. Every file is checked before the first one is sent. Attaching needs level 4 (Act) on the board: a file cannot wait in the Inbox.
+The type comes from the extension: images (jpg, png, gif, webp, svg), PDF, Word, Excel and PowerPoint files, text, Markdown, CSV, JSON, archives (zip, rar, 7z), audio and video. Each file can be as large as the plan of the board's owner allows (Free 25 MB, Pro 2 GB, a team's boards 5 GB), at most 4 GB from the CLI. A file over 8 MB goes straight to Listspace's file storage, sent from disk, and is put on the item when it has arrived. Every file is checked before the first one is sent. Attaching needs level 4 (Act) on the board: a file cannot wait in the Inbox.
 
 ## Output for agents and scripts
 

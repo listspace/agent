@@ -1,8 +1,8 @@
 // One function per command. Each calls the REST API through ApiClient and
 // returns the server's JSON (for --json) and a readable text.
 
-import { CliFailure, fail, type ApiClient } from './api.js'
-import { ATTACHABLE_EXTENSIONS, MAX_FILE_BYTES, fileNameOf, formatSize, mimeTypeFor, type LocalFile } from './files.js'
+import { CliFailure, fail, type Answer, type ApiClient } from './api.js'
+import { ATTACHABLE_EXTENSIONS, MAX_FILE_BYTES, MAX_LARGE_FILE_BYTES, fileNameOf, formatSize, mimeTypeFor, type LocalFile } from './files.js'
 import { isRecord } from './decode.js'
 import {
   formatAccount,
@@ -22,6 +22,7 @@ import {
   LIST_KINDS,
   account,
   attached,
+  largeUploadLink,
   boardDetail,
   boardSummary,
   claimResult,
@@ -267,20 +268,21 @@ export async function releaseCommand(client: ApiClient, input: { item: string })
 // ---- Files from the user's computer ----
 
 /** Reads a local file with its size checked first (files.readLocalFile; tests may pass another). */
-export type ReadFile = (path: string, maxBytes: number) => Promise<LocalFile>
+export type ReadFile = (path: string, maxBytes: number, largeMaxBytes?: number) => Promise<LocalFile>
 
-/** A local file checked and read, ready to upload. */
+/** A local file checked and read (up to 8 MB) or opened (a larger one, sent straight to storage), ready to upload. */
 export interface FileToAttach {
   readonly path: string
   readonly fileName: string
   readonly mimeType: string
-  readonly bytes: Uint8Array
+  readonly content: { readonly kind: 'bytes'; readonly bytes: Uint8Array } | { readonly kind: 'blob'; readonly blob: Blob; readonly sizeBytes: number }
 }
 
 /**
  * Checks every file before anything is sent: a known type, present, not
- * empty, at most 8 MB. One bad file stops the whole command, so nothing is
- * half attached because of a typo in the last path.
+ * empty, at most 4 GB (the plan's size of one file is checked by the server
+ * before any byte goes up). One bad file stops the whole command, so
+ * nothing is half attached because of a typo in the last path.
  */
 export async function prepareFiles(paths: readonly string[], read: ReadFile): Promise<FileToAttach[]> {
   const out: FileToAttach[] = []
@@ -291,18 +293,21 @@ export async function prepareFiles(paths: readonly string[], read: ReadFile): Pr
     if (mimeType === null) {
       return fail({ kind: 'usage', message: `${fileName}: this type of file cannot be attached. Allowed: ${ATTACHABLE_EXTENSIONS.join(', ')}.` })
     }
-    const file = await read(filePath, MAX_FILE_BYTES)
+    const file = await read(filePath, MAX_FILE_BYTES, MAX_LARGE_FILE_BYTES)
     switch (file.kind) {
       case 'ok':
         if (file.bytes.length === 0) return fail({ kind: 'usage', message: `${filePath} is empty.` })
-        out.push({ path: filePath, fileName, mimeType, bytes: file.bytes })
+        out.push({ path: filePath, fileName, mimeType, content: { kind: 'bytes', bytes: file.bytes } })
+        break
+      case 'large':
+        out.push({ path: filePath, fileName, mimeType, content: { kind: 'blob', blob: file.blob, sizeBytes: file.sizeBytes } })
         break
       case 'missing':
         return fail({ kind: 'usage', message: `${filePath}: no such file.` })
       case 'not_a_file':
         return fail({ kind: 'usage', message: `${filePath} is a folder, not a file.` })
       case 'too_large':
-        return fail({ kind: 'usage', message: `${filePath} is ${formatSize(file.sizeBytes)}; a file can be at most ${formatSize(MAX_FILE_BYTES)}. Share a link with attach_url instead, or make it smaller.` })
+        return fail({ kind: 'usage', message: `${filePath} is ${formatSize(file.sizeBytes)}; a file can be at most ${formatSize(MAX_LARGE_FILE_BYTES)} from here. Add it in the Listspace app instead, or make it smaller.` })
       case 'unreadable':
         return fail({ kind: 'unexpected', message: `Could not read ${filePath}: ${file.reason}` })
       default: {
@@ -324,9 +329,8 @@ export async function attachCommand(client: ApiClient, input: { item: string; fi
   const results: Attached[] = []
   const raw: unknown[] = []
   for (const file of input.files) {
-    const body = { filename: file.fileName, mime_type: file.mimeType, content_base64: Buffer.from(file.bytes).toString('base64') }
     try {
-      const answer = await client.data('POST', `/items/${path(input.item)}/attachments`, attached, { body })
+      const answer = await attachOne(client, input.item, file)
       results.push(answer.value)
       raw.push(answer.raw)
     } catch (error) {
@@ -336,4 +340,30 @@ export async function attachCommand(client: ApiClient, input: { item: string; fi
     }
   }
   return { raw: { data: raw }, text: formatAttached(results) }
+}
+
+/**
+ * One file: up to 8 MB as base64 in the request; a larger one straight to
+ * storage: an upload link with its size and name, the PUT of the file from
+ * disk (exactly that many bytes), then the link's POST that puts it on the
+ * item. A refusal of the plan (the size of one file, storage) comes from the
+ * first step, before any byte is sent.
+ */
+async function attachOne(client: ApiClient, item: string, file: FileToAttach): Promise<Answer<Attached>> {
+  switch (file.content.kind) {
+    case 'bytes': {
+      const body = { filename: file.fileName, mime_type: file.mimeType, content_base64: Buffer.from(file.content.bytes).toString('base64') }
+      return client.data('POST', `/items/${path(item)}/attachments`, attached, { body })
+    }
+    case 'blob': {
+      const link = await client.data('POST', `/items/${path(item)}/upload-links`, largeUploadLink, { body: { filename: file.fileName, size_bytes: file.content.sizeBytes } })
+      if (link.value.finish_url === null) return fail({ kind: 'unexpected', message: 'Listspace answered without a link to finish a large upload. Update the CLI, or the server is older than it.' })
+      await client.putToStorage(link.value.upload_url, file.content.blob)
+      return client.finishUpload(link.value.finish_url, attached)
+    }
+    default: {
+      const exhaustive: never = file.content
+      return exhaustive
+    }
+  }
 }

@@ -227,3 +227,9 @@ export const attached = object({
   }),
 })
 export type Attached = Decoded<typeof attached>
+
+/** POST /items/:id/upload-links with size_bytes over 8 MB: where to PUT the file, and the link that finishes it. */
+export const largeUploadLink = object({
+  upload_url: string,
+  finish_url: nullable(string),
+})

@@ -2,6 +2,11 @@
 
 One version runs through the CLI, the skill and the Claude Code plugin, so each entry covers all three.
 
+## 0.6.0
+
+- `listspace attach` takes files up to the plan's size of one file (Free 25 MB, Pro 2 GB, a team's boards 5 GB), at most 4 GB from the CLI. Up to 8 MB a file goes in the request as before; a larger one goes straight to Listspace's file storage: the CLI asks for an upload link with the file's size, sends the file from disk (it is never read into memory) and then finishes the upload. A file over the plan's size is refused before any byte is sent.
+- The skill's file pages say how an agent sends a file over 8 MB with an upload link (`get_upload_link` with `size_bytes`, a PUT, then `finish_command`), that `attach_chat_file` takes files up to the plan's size, and what `virus_scan` `not_scanned_too_large` means.
+
 ## 0.5.0
 
 - New command `listspace call <tool> ['<json>']`: runs any tool of the Listspace MCP server by name, with its arguments as one JSON object, for example `listspace call get_item --json '{"item_id": "..."}'`. It goes to the MCP server with the same token, so the tools, the agent access level checks and the results are the same as for an MCP client, and a new tool works without a CLI update. A tool that refuses (a level, a wrong argument) exits 1 with `error.kind` `tool`. A call with an `idempotency_key` is sent once more after a network error or a 502, 503 or 504; one without is sent once.

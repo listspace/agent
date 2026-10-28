@@ -65,6 +65,11 @@ test('readLocalFile: missing, a folder, too large (checked before reading) and o
   assert.deepEqual(await readLocalFile(join(dir, 'nope.txt'), 100), { kind: 'missing' })
   assert.deepEqual(await readLocalFile(join(dir, 'folder.pdf'), 100), { kind: 'not_a_file' })
   assert.deepEqual(await readLocalFile(join(dir, 'big.txt'), 10), { kind: 'too_large', sizeBytes: 20 })
+  // Over the first size and up to the second: opened, not read
+  const large = await readLocalFile(join(dir, 'big.txt'), 10, 20)
+  assert.equal(large.kind, 'large')
+  assert.equal(large.kind === 'large' ? large.blob.size : 0, 20)
+  assert.deepEqual(await readLocalFile(join(dir, 'big.txt'), 10, 19), { kind: 'too_large', sizeBytes: 20 })
   const ok = await readLocalFile(join(dir, 'a.txt'), 100)
   assert.equal(ok.kind, 'ok')
   assert.equal(ok.kind === 'ok' ? Buffer.from(ok.bytes).toString('utf8') : '', 'hello')
@@ -92,9 +97,8 @@ test('attach --json prints the server answers as a data list', async () => {
   assert.equal(printed.data[0].attachment.filename, 'plan.pdf')
 })
 
-test('attach checks every file before sending anything: type, missing, empty, too large', async () => {
+test('attach checks every file before sending anything: type, missing, empty', async () => {
   const dir = await filesIn({ 'ok.pdf': '%PDF-', 'tool.exe': 'MZ', 'empty.txt': '' })
-  await writeFile(join(dir, 'huge.zip'), new Uint8Array(MAX_FILE_BYTES + 1))
 
   const wrongType = await runCli(['attach', ITEM_ID, join(dir, 'ok.pdf'), join(dir, 'tool.exe')], {})
   assert.equal(wrongType.code, 2)
@@ -108,11 +112,42 @@ test('attach checks every file before sending anything: type, missing, empty, to
   const empty = await runCli(['attach', ITEM_ID, join(dir, 'empty.txt')], {})
   assert.equal(empty.code, 2)
   assert.match(empty.stderr, /empty\.txt is empty/)
+})
 
-  const huge = await runCli(['attach', ITEM_ID, join(dir, 'huge.zip')], {})
-  assert.equal(huge.code, 2)
-  assert.match(huge.stderr, /huge\.zip is 8\.0 MB; a file can be at most 8\.0 MB/)
-  assert.equal(huge.sent.length, 0)
+test('attach: a file over 8 MB goes straight to storage: a link with its size, the PUT from disk without the token, then the finish', async () => {
+  const dir = await tempDir()
+  await writeFile(join(dir, 'film.mov'), new Uint8Array(MAX_FILE_BYTES + 1))
+  const putBodies: number[] = []
+  const result = await runCli(['attach', ITEM_ID, join(dir, 'film.mov')], {
+    [`POST /items/${ITEM_ID}/upload-links`]: {
+      status: 201,
+      body: { data: { upload_url: 'https://storage.example.test/private/tmp/abc?X-Amz-Signature=s', finish_url: 'https://api.listspace.app/v1/uploads/lsu_x/' } },
+    },
+    'PUT /private/tmp/abc': (sent) => {
+      putBodies.push(sent.headers.has('authorization') ? -1 : 1)
+      return { status: 200 }
+    },
+    'POST /uploads/lsu_x/': (sent) => ({ ...attachedBody({ ...sent, body: { filename: 'film.mov' } }) }),
+  })
+  assert.equal(result.code, 0, result.stderr)
+  assert.match(result.stdout, /Attached "film\.mov"/)
+  assert.deepEqual(result.sent.map((s) => `${s.method} ${s.path}`), [`POST /items/${ITEM_ID}/upload-links`, 'PUT /private/tmp/abc', 'POST /uploads/lsu_x/'])
+  assert.deepEqual(result.sent[0]?.body, { filename: 'film.mov', size_bytes: MAX_FILE_BYTES + 1 })
+  // The storage link and the finish link are the credential: the token goes to neither
+  assert.deepEqual(putBodies, [1])
+  assert.equal(result.sent[2]?.headers.has('authorization'), false)
+})
+
+test('attach: storage refusing the PUT stops with a message, and nothing is finished', async () => {
+  const dir = await tempDir()
+  await writeFile(join(dir, 'film.mov'), new Uint8Array(MAX_FILE_BYTES + 1))
+  const result = await runCli(['attach', ITEM_ID, join(dir, 'film.mov')], {
+    [`POST /items/${ITEM_ID}/upload-links`]: { status: 201, body: { data: { upload_url: 'https://storage.example.test/private/tmp/abc', finish_url: 'https://api.listspace.app/v1/uploads/lsu_x/' } } },
+    'PUT /private/tmp/abc': { status: 403 },
+  })
+  assert.equal(result.code, 1)
+  assert.match(result.stderr, /refused the file \(HTTP 403\)/)
+  assert.equal(result.sent.some((s) => s.path === '/uploads/lsu_x/'), false)
 })
 
 test('attach usage: needs an item and a file, an item id, and refuses --inbox', async () => {

@@ -47,7 +47,7 @@ Writes take `--inbox --reason "<why>"` to suggest instead of change, or `--reaso
 | 3 | Not signed in or token revoked | Ask the user to run `listspace login` |
 | 4 | Rate limited | Wait `error.retry_after_seconds`, then retry once. If the message says the Inbox is full or the hourly cap is reached, tell the user instead |
 
-`attach` uploads files from this computer (at most 8 MB each; see [files.md](files.md)). It needs level 4 (Act); a file cannot wait in the Inbox.
+`attach` uploads files from this computer (up to the plan's size of one file, at most 4 GB; see [files.md](files.md)). It needs level 4 (Act); a file cannot wait in the Inbox.
 
 ## Every other tool: `call`
 

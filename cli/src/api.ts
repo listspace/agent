@@ -98,6 +98,33 @@ export class ApiClient {
     return { value: decodeOrFail(decoder, json, 'body'), raw: json }
   }
 
+  /**
+   * PUTs a file to a signed storage link (get_upload_link for a large file).
+   * The link is the credential: no token is sent with it. The Blob's size
+   * is the Content-Length, which the link signed.
+   */
+  async putToStorage(url: string, file: Blob): Promise<void> {
+    let response: Response
+    try {
+      response = await this.options.fetch(url, { method: 'PUT', body: file, headers: { 'User-Agent': `listspace-cli/${VERSION}` } })
+    } catch (cause) {
+      const reason = cause instanceof Error ? cause.message : String(cause)
+      return fail({ kind: 'network', message: `Could not send the file to Listspace's file storage: ${reason}` })
+    }
+    await response.body?.cancel()
+    if (!response.ok) {
+      return fail({ kind: 'api', status: response.status, code: 'upload_failed', message: `Listspace's file storage refused the file (HTTP ${response.status}). Run the command again for a new link.` })
+    }
+  }
+
+  /** POSTs to an upload link's finish address (no body; the link is the credential) and decodes `data`. */
+  async finishUpload<T>(url: string, decoder: Decoder<T>): Promise<Answer<T>> {
+    const { response, json } = await this.exchange(new URL(url), { method: 'POST', headers: { Accept: 'application/json', 'User-Agent': `listspace-cli/${VERSION}` } }, false)
+    if (!response.ok) return fail(errorFor(response, json))
+    if (!isRecord(json) || !('data' in json)) return fail({ kind: 'unexpected', message: 'Unexpected response from Listspace: no data.' })
+    return { value: decodeOrFail(decoder, json.data, 'data'), raw: json.data }
+  }
+
   /** A new idempotency key: a random UUID, or the tests' own. */
   newKey(): string {
     return (this.options.newKey ?? (() => crypto.randomUUID()))()

@@ -1,12 +1,22 @@
 // Files from the user's computer for `listspace attach`: which ones may go up,
-// with what type, read from disk with the size checked first. The API takes
-// the bytes as base64 (POST /items/:id/attachments), so an agent never has to
-// encode a file itself.
+// with what type, read from disk with the size checked first. Up to 8 MB the
+// API takes the bytes as base64 (POST /items/:id/attachments), so an agent
+// never has to encode a file itself; a larger file goes straight to file
+// storage (an upload link with its size, then a PUT of the file from disk
+// and a POST that finishes it), up to the plan's size of one file.
 
+import { openAsBlob } from 'node:fs'
 import { readFile, stat } from 'node:fs/promises'
 
-/** The most the API takes per file, decoded (MAX_ATTACH_BYTES on the server). */
+/** The most the API takes per file in the request, decoded (MAX_ATTACH_BYTES on the server). */
 export const MAX_FILE_BYTES = 8 * 1024 * 1024
+
+/**
+ * The most one upload link sends straight to storage (AI_LINK_MAX_BYTES on
+ * the server): 4 GB. The plan's size of one file may be less (Free 25 MB,
+ * Pro 2 GB); the server says so before anything is sent.
+ */
+export const MAX_LARGE_FILE_BYTES = 4 * 1024 * 1024 * 1024
 
 /**
  * The file types the app lets people attach (fileUploadService.validateFile),
@@ -62,16 +72,18 @@ export function mimeTypeFor(fileName: string): string | null {
   return TYPES[fileName.slice(dot + 1).toLowerCase()] ?? null
 }
 
-/** A file read from disk, or why it could not be. */
+/** A file read from disk (a large one opened, not read), or why it could not be. */
 export type LocalFile =
   | { readonly kind: 'ok'; readonly bytes: Uint8Array }
+  /** Over maxBytes, up to largeMaxBytes: a Blob backed by the file, sent from disk without reading it into memory. */
+  | { readonly kind: 'large'; readonly blob: Blob; readonly sizeBytes: number }
   | { readonly kind: 'missing' }
   | { readonly kind: 'not_a_file' }
   | { readonly kind: 'too_large'; readonly sizeBytes: number }
   | { readonly kind: 'unreadable'; readonly reason: string }
 
-/** Reads a file after checking its size, so a large file is never loaded. */
-export async function readLocalFile(path: string, maxBytes: number): Promise<LocalFile> {
+/** Reads a file after checking its size, so a large file is never loaded: over maxBytes (and up to largeMaxBytes) it is opened as a Blob. */
+export async function readLocalFile(path: string, maxBytes: number, largeMaxBytes = maxBytes): Promise<LocalFile> {
   let size: number
   try {
     const info = await stat(path)
@@ -81,7 +93,14 @@ export async function readLocalFile(path: string, maxBytes: number): Promise<Loc
     if (isErrnoCode(error, 'ENOENT')) return { kind: 'missing' }
     return { kind: 'unreadable', reason: error instanceof Error ? error.message : String(error) }
   }
-  if (size > maxBytes) return { kind: 'too_large', sizeBytes: size }
+  if (size > largeMaxBytes) return { kind: 'too_large', sizeBytes: size }
+  if (size > maxBytes) {
+    try {
+      return { kind: 'large', blob: await openAsBlob(path), sizeBytes: size }
+    } catch (error) {
+      return { kind: 'unreadable', reason: error instanceof Error ? error.message : String(error) }
+    }
+  }
   try {
     const bytes = await readFile(path)
     // The file may have grown between stat and read
@@ -100,5 +119,6 @@ function isErrnoCode(error: unknown, code: string): boolean {
 export function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} bytes`
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`
 }
