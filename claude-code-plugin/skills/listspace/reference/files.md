@@ -27,6 +27,8 @@ With the MCP tools and a shell that can reach listspace.app, but no `listspace l
 
 One link takes one file, once, within 10 minutes. A used or expired link answers 404: ask for a new one. Level 4 (Act) is checked when you ask and again when the file arrives.
 
+Several files: send them one after another, in the order they should show on the item (01, 02, 03), not all at once. A file is dated when it arrives, and the item lists its files by that time.
+
 ## Other ways
 
 - A file on the web: `attach_url` with its public https address. Listspace downloads it.

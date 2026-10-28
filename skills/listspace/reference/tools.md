@@ -10,8 +10,8 @@ Server: `https://mcp.listspace.app` (Streamable HTTP). Sign in with OAuth, or se
 | `start_session` | `board_id`: guidance, instructions, level, `allowed` for this board, lists with kinds, `work`, `captured`, `recently_done`, `due_soon`, `last_sessions` (the latest 3 session summaries) |
 | `board_report` | `board_id`, optional `period` (`week`, `two_weeks`, `month`, `quarter`) and `stalled_days`: the data for a status report (finished, added, in progress, overdue, due soon, stalled, open requests, decisions, who made the changes). Write the report yourself from it; never invent numbers. Offer `attach_document` to keep it as a PDF on an item |
 | `end_session` | `board_id`, `summary` (at most 2000 characters): what changed, what is open, the next step. Returned by the next `start_session`. `decisions` (up to 10, `title` and `because`): the decisions of the session; the ones the board does not have yet are recorded as Proposed in the Inbox (with decisions off on the board: added as normal items). Level 3; no `inbox` |
-| `get_board` | Every list (with `kind`) and item id on a board, and `allowed` |
-| `get_item` | One item in full; description as markdown; `link_previews` (title, image, site, and for books ISBN, authors and summary); `depends_on` and `blocks` (the other item, `kind`, `conflict`: true when the dates break the link) |
+| `get_board` | Every list (with `kind`) and item id on a board, and `allowed`; an item with files has `attachment_count` |
+| `get_item` | One item in full; description as markdown; `link_previews` (title, image, site, and for books ISBN, authors and summary); `depends_on` and `blocks` (the other item, `kind`, `conflict`: true when the dates break the link); `attachments`: the file `count`, the `first` 5 files (id, filename, type, size, added) and a `hint` to call `list_attachments` or `read_attachment` for more |
 | `export_item` | A 15-minute download link to one item or document as a markdown file, for the user only |
 | `search_items` | Items by words across boards; run it before adding to avoid duplicates |
 | `list_due_items` | Items with due dates, soonest first |
@@ -155,7 +155,7 @@ Need level 4 (Act); below it they are refused, since a claim cannot wait in the 
 
 | Tool | Fields | Result |
 |---|---|---|
-| `next_item` | `board_id`; optional `kinds` (default `["todo", "backlog"]`), `label_ids` (all must match), `move_to_doing` (default true), `ttl_minutes` (5 to 1440, default 120) | `outcome: "claimed"` with `item` (description as markdown, checklists, `claim`), `expires_at`, `moved_to` (null: not moved, `note` says why) and `undo`; or `outcome: "empty"` with `message` |
+| `next_item` | `board_id`; optional `kinds` (default `["todo", "backlog"]`), `label_ids` (all must match), `move_to_doing` (default true), `ttl_minutes` (5 to 1440, default 120) | `outcome: "claimed"` with `item` (description as markdown, checklists, `claim`, `attachments` as in `get_item`), `expires_at`, `moved_to` (null: not moved, `note` says why) and `undo`; or `outcome: "empty"` with `message` |
 | `claim_item` | `item_id`, optional `ttl_minutes` | `claimed` or `renewed` with `expires_at`, plus `moved_to` and `undo` when it moved the item from a capture, backlog or to do list to the top of the doing list (left out when nothing moved); or `taken` with `claimed_by` (`agent_name`, `expires_at`): do not work on it |
 | `release_item` | `item_id` | `released` or `not_claimed`; `taken` when another agent holds it. The item stays in its list. For an item you stop without finishing: a move into a `done` list, completing or archiving already ends the claim |
 
