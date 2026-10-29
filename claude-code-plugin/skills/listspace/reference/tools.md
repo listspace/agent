@@ -6,8 +6,8 @@ Server: `https://mcp.listspace.app` (Streamable HTTP). Sign in with OAuth, or se
 
 | Tool | Use it for |
 |---|---|
-| `get_account` | First call: guidance, default level and its `allowed`, boards with their level, Inbox count and whether they have instructions |
-| `start_session` | `board_id`: guidance, instructions, level, `allowed` for this board, lists with kinds, `work`, `captured`, `recently_done`, `due_soon`, `last_sessions` (the latest 3 session summaries) |
+| `get_account` | First call: guidance, default level and its `allowed`, boards with their level, Inbox count and whether they have instructions. Can carry `news`: one line about something new, to mention once in passing |
+| `start_session` | `board_id`: guidance, instructions, level, `allowed` for this board, lists with kinds, `work`, `captured`, `recently_done`, `due_soon`, `last_sessions` (the latest 3 session summaries). Can carry `news`, as `get_account` |
 | `board_report` | `board_id`, optional `period` (`week`, `two_weeks`, `month`, `quarter`) and `stalled_days`: the data for a status report (finished, added, in progress, overdue, due soon, stalled, open requests, decisions, who made the changes). Write the report yourself from it; never invent numbers. Offer `attach_document` to keep it as a PDF on an item |
 | `end_session` | `board_id`, `summary` (at most 2000 characters): what changed, what is open, the next step. Returned by the next `start_session`. `decisions` (up to 10, `title` and `because`): the decisions of the session; the ones the board does not have yet are recorded as Proposed in the Inbox (with decisions off on the board: added as normal items). Level 3; no `inbox` |
 | `get_board` | Every list (with `kind`) and item id on a board, and `allowed`; an item with files has `attachment_count` |
@@ -25,7 +25,7 @@ Server: `https://mcp.listspace.app` (Streamable HTTP). Sign in with OAuth, or se
 | `list_spaces` | The user's spaces (groups of boards, such as Personal and Work) in order, with board counts. `list_boards` takes `space_id` |
 | `list_suggestions` | A board's Inbox and what happened to your suggestions |
 | `get_history` | Who changed what on a board or item, with `request_id` and `can_undo`; `since` leaves out older changes |
-| `catch_up` | What happened since a moment (default: since the user last opened the board), summed up for a short briefing: counts, who did what, the few items that matter, the Inbox, overdue. One board or all |
+| `catch_up` | What happened since a moment (default: since the user last opened the board), summed up for a short briefing: counts, who did what (other people on the board by name), the few items that matter, the Inbox, overdue. One board or all |
 | `list_versions` | A document's saved versions, newest first: who, when, size, note |
 | `get_version` | `item_id`, `version`: one version's title and text (markdown), and `current_version` |
 | `read_attachment` | `item_id`, `attachment_id`, optional `sheet`: a spreadsheet (.xlsx, .xlsm, .xls, .ods) or CSV/TSV file on the item as text, each sheet as CSV. At most the first 1000 rows and 100 columns of each sheet and 200000 characters in all (`truncated`, and `range` for the full size); formulas give their saved result. Files up to 10 MB, only when the file has passed the virus check (or you added it) |
