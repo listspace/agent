@@ -27,6 +27,8 @@ With the MCP tools and a shell that can reach listspace.app, but no `listspace l
 
 One link takes one file, once, within 10 minutes. A used or expired link answers 404: ask for a new one. Level 4 (Act) is checked when you ask and again when the file arrives.
 
+In claude.ai, a 403 from curl that is not a JSON answer from Listspace means the sandbox's network filter blocks the site. Tell the user to add `listspace.app` under Settings > Capabilities > Create and edit files > Use the internet while making files (on) > Allowed websites > Manage > Add a website (for a file over 8 MB, also `*.r2.cloudflarestorage.com`), then try again. For a file up to 8 MB you can use `attach_file` instead, when writing it out as base64 is practical.
+
 A file over 8 MB (up to the plan's size of one file, at most 4 GB):
 
 1. `get_upload_link` with `item_id`, `filename` and `size_bytes`, the exact size (`wc -c < film.mov`).
@@ -42,7 +44,7 @@ Several files: send them one after another, in the order they should show on the
 - A file on the web: `attach_url` with its public https address. Listspace downloads it.
 - A document you write yourself (a report, a quote, notes) as a PDF, a Word file or markdown: `attach_document` with `format` (`pdf`, `docx` or `md`), a `title` and the text as markdown in `content`. Listspace makes the file and attaches it; you never handle bytes. This works in chat apps too. `from_item: true` makes the file from the item's own description or document instead, so you do not send the text again.
 - In ChatGPT, a file the user put in the chat: `attach_chat_file` with `item_id` and the file as `file`, one call per file. ChatGPT passes the file's download link and Listspace downloads it; the code sandbox there cannot reach listspace.app, so never try `get_upload_link` and curl in ChatGPT. When the call says ChatGPT did not hand the file over (the phone apps can do this), ask the user to attach it again in ChatGPT on the web or the desktop app, or to drop it on the item in Listspace.
-- Another chat app without a shell (such as Claude on claude.ai) and a file the user already has: ask the user to drop the file on the item in the Listspace app.
+- Another chat app without a shell and a file the user already has: ask the user to drop the file on the item in the Listspace app.
 - A tiny text file you wrote yourself: `attach_file` with base64 is fine.
 - Every attach answer has `sha256`, the SHA-256 of the stored bytes: compare it with your copy when it matters.
 - Every file is checked for viruses after it is added. The answer's `virus_scan` is `clean`, `checking` (other people can open it once the check is done, usually within a minute), `not_checked` (it could not be checked, for example a locked zip: only you can open it), `blocked` (a virus was found: nobody can open it) or `not_scanned_too_large` (over 250 MB, too large for the scan: everyone on the board can download it, and the app asks before each download). Tell the user when a file comes back `blocked` or `not_scanned_too_large`.
