@@ -211,7 +211,7 @@ export function page<T>(entry: Decoder<T>): Decoder<{ data: T[]; next_cursor: st
   return object({ data: array(entry), next_cursor: nullable(string) })
 }
 
-export const errorBody = object({ error: object({ code: string, message: string }) })
+export const errorBody = object({ error: object({ code: string, message: string, retry_after_seconds: withDefault(nullable(number), null) }) })
 
 /** POST /items/:id/attachments: the stored file. A file never waits in the Inbox. */
 export const attached = object({
@@ -232,4 +232,13 @@ export type Attached = Decoded<typeof attached>
 export const largeUploadLink = object({
   upload_url: string,
   finish_url: nullable(string),
+  /** When upload_url stops working to start a PUT (15 minutes after the answer); null from a server that does not say. */
+  expires_at: withDefault(nullable(string), null),
+})
+export type LargeUploadLink = Decoded<typeof largeUploadLink>
+
+/** POST /upload-links: one link per file (index is the file's place in the request), and the files that got none. */
+export const largeUploadLinks = object({
+  links: array(object({ index: number, upload_url: string, finish_url: nullable(string), expires_at: withDefault(nullable(string), null) })),
+  refused: array(object({ index: number, filename: string, message: string })),
 })

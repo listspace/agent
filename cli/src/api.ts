@@ -295,10 +295,12 @@ function decodeOrFail<T>(decoder: Decoder<T>, value: unknown, path: string): T {
 export function errorFor(response: Response, json: unknown): CliError {
   let code = 'unknown'
   let message = `Listspace answered ${response.status}.`
+  let retryAfter: number | null = null
   try {
     const parsed = errorBody(json, 'body')
     code = parsed.error.code
     message = parsed.error.message
+    retryAfter = parsed.error.retry_after_seconds
   } catch {
     // Not the usual error envelope (a proxy page, say): keep the status message
   }
@@ -306,7 +308,9 @@ export function errorFor(response: Response, json: unknown): CliError {
   if (response.status === 401) return { kind: 'auth', message: `${message} ${LOGIN_HINT}` }
   if (response.status === 429) {
     const header = response.headers.get('Retry-After')
-    const seconds = header !== null && /^\d+$/.test(header) ? Number(header) : null
+    const seconds = retryAfter ?? (header !== null && /^\d+$/.test(header) ? Number(header) : null)
+    // An upload refusal already says when to come back ("Try again after 14:32 UTC (in 12 minutes)")
+    if (/try again after/i.test(message)) return { kind: 'rate_limited', message, retryAfterSeconds: seconds }
     const wait = seconds === null ? 'Wait a minute' : `Wait ${seconds} seconds`
     return { kind: 'rate_limited', message: `${message} ${wait} before trying again.`, retryAfterSeconds: seconds }
   }

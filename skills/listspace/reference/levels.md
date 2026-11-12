@@ -5,12 +5,14 @@ The user sets a level per account (default 4 for new accounts) and can give a bo
 | Level | Name | Made directly | Sent to the Inbox |
 |---|---|---|---|
 | 1 | Read only | nothing (writes are refused) | nothing |
-| 2 | Suggest | nothing (a capture into a space's Unsorted applies) | every write that can wait there; files, labels, links, claims, spaces and new boards are refused |
-| 3 | Capture | items in `info` and `capture` lists, checklist items, comments, links on items (`add_link`, `remove_link`), answers to requests, new boards, new spaces | everything else that can wait there; files, labels, claims and space changes are refused |
-| 4 | Act | also items in other lists, edits, dependencies (`add_dependency`, `remove_dependency`), labels, spaces, files, moves, lists, board details, claims (`next_item`, `claim_item`, `release_item`) | completing, archiving, adding or moving to a `done` list, removing checklist items, moving or copying a list to another board, deleting a custom field; deleting a label is refused |
+| 2 | Suggest | nothing (a capture into a space's Unsorted applies) | every write that can wait there; files, labels, links, saving items, claims, closing requests, spaces and new boards are refused |
+| 3 | Capture | items in `info` and `capture` lists, checklist items, comments, links on items (`add_link`, `remove_link`), answers to requests, saving an item for the user (`save_item`), new boards, new spaces | everything else that can wait there; files, labels, claims, closing requests and space changes are refused |
+| 4 | Act | also items in other lists, edits, dependencies (`add_dependency`, `remove_dependency`), labels, spaces, files, moves, lists, board details, claims (`next_item`, `claim_item`, `release_item`), closing a request the user sent (`close_request`) | completing, archiving, adding or moving to a `done` list, removing checklist items, moving or copying a list to another board, deleting a custom field; deleting a label is refused |
 | 5 | Full | everything, including completing and archiving, deleting an unused label or a custom field (undo brings a field back with its values) and removing checklist items you added; never deleting items, lists, boards, comments or files | what you send with `inbox: true`, decisions, and removing a checklist item someone else added |
 
-A list without a kind counts as a to do list. A move to another board follows the lower of the two levels. Some writes cannot wait in an Inbox: files, labels, spaces, links on items, claims and new boards. Below their level they are refused, not sent to the Inbox, and `inbox: true` does not change that.
+A board the user set to Off does not exist for you: it is in no result, and asking for it answers not found. Leave it alone.
+
+A list without a kind counts as a to do list. A move to another board follows the lower of the two levels. Some writes cannot wait in an Inbox: files, labels, spaces, links on items, claims, closing a request and new boards. Below their level they are refused, not sent to the Inbox, and `inbox: true` does not change that.
 
 ## `allowed`: the table for your level
 

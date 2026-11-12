@@ -23,6 +23,7 @@ import {
   account,
   attached,
   largeUploadLink,
+  largeUploadLinks,
   boardDetail,
   boardSummary,
   claimResult,
@@ -36,6 +37,7 @@ import {
   undoResult,
   writeOutcome,
   type Attached,
+  type LargeUploadLink,
   type BoardDetail,
   type BoardSummary,
   type ListKind,
@@ -320,26 +322,107 @@ export async function prepareFiles(paths: readonly string[], read: ReadFile): Pr
 }
 
 /**
+ * Large files get their upload links together, in a chunk: each link holds room in storage and its PUT must start
+ * within 15 minutes. A file is added to a chunk only while the bytes queued ahead of it stay under CHUNK_BYTES (a
+ * slow uplink must still start it in time), so a big file goes on its own; at most CHUNK_FILES files a chunk.
+ */
+const CHUNK_BYTES = 500 * 1024 * 1024
+const CHUNK_FILES = 10
+/** A link that stops working within this long is not used: a fresh one is asked for. */
+const STALE_MS = 60_000
+
+/** A large file the server gave no link, and why. */
+interface NoLink {
+  readonly refused: string
+}
+
+/**
  * Uploads the files to the item one by one. Attaching needs level 4 (Act):
- * a file cannot wait in the Inbox. When one fails, the error says which
- * files were attached already, so they are not sent twice.
+ * a file cannot wait in the Inbox. Large files ask for their upload links in
+ * small chunks (by bytes, POST /upload-links), each chunk right before its
+ * files are sent, so a link is never old when its PUT starts and a long list
+ * never holds more room in storage than a few files need. A file the server
+ * gives no link (storage full, too many large files waiting) is skipped and
+ * named at the end; the others still go. When one fails otherwise, the error
+ * says which files were attached already, so they are not sent twice.
  */
 export async function attachCommand(client: ApiClient, input: { item: string; files: readonly FileToAttach[] }): Promise<Output> {
   if (!UUID.test(input.item)) return fail({ kind: 'usage', message: `"${input.item}" is not an item id. Item ids come from \`listspace board <board>\`.` })
   const results: Attached[] = []
   const raw: unknown[] = []
-  for (const file of input.files) {
+  const skipped: { readonly name: string; readonly reason: string }[] = []
+  const links = new Map<FileToAttach, LargeUploadLink | NoLink>()
+  // An older server has no POST /upload-links: one link a file, as before
+  let batches = true
+  for (const [position, file] of input.files.entries()) {
     try {
-      const answer = await attachOne(client, input.item, file)
+      let made: LargeUploadLink | undefined
+      if (file.content.kind === 'blob') {
+        if (batches && !links.has(file)) batches = await askForLinks(client, input.item, input.files.slice(position), links)
+        const got = links.get(file)
+        if (got !== undefined && 'refused' in got) {
+          skipped.push({ name: file.fileName, reason: got.refused })
+          continue
+        }
+        made = got
+      }
+      const answer = await attachOne(client, input.item, file, made)
       results.push(answer.value)
       raw.push(answer.raw)
     } catch (error) {
-      if (!(error instanceof CliFailure) || results.length === 0) throw error
+      if (!(error instanceof CliFailure) || (results.length === 0 && skipped.length === 0)) throw error
       const done = results.map((result) => result.attachment.filename).join(', ')
-      throw new CliFailure({ ...error.error, message: `Attached ${done}; ${file.fileName} and the rest were not: ${error.error.message}` })
+      throw new CliFailure({ ...error.error, message: `Attached ${done === '' ? 'nothing' : done}; ${file.fileName} and the rest were not: ${error.error.message}` })
     }
   }
+  if (skipped.length > 0) {
+    const done = results.map((result) => result.attachment.filename).join(', ')
+    return fail({
+      kind: 'api',
+      status: 400,
+      code: 'invalid_request',
+      message: `Attached ${done === '' ? 'nothing' : done}; not attached: ${skipped.map((s) => `${s.name} (${s.reason})`).join('; ')}`,
+    })
+  }
   return { raw: { data: raw }, text: formatAttached(results) }
+}
+
+/**
+ * The upload links of the next large files, a chunk by bytes (CHUNK_BYTES), in one call
+ * (POST /upload-links), filed in `links`; a file the server refused is filed
+ * with its reason. Fewer than two large files keep the call of attachOne.
+ * False when the server has no such route (404 "No such endpoint"): the caller goes on with one
+ * link a file. Any other failure of the whole call (a limit, a read-only
+ * token) is thrown as it is.
+ */
+async function askForLinks(client: ApiClient, item: string, rest: readonly FileToAttach[], links: Map<FileToAttach, LargeUploadLink | NoLink>): Promise<boolean> {
+  const next = rest.filter((file) => file.content.kind === 'blob' && !links.has(file))
+  if (next.length < 2) return true
+  const chunk: FileToAttach[] = []
+  let queued = 0
+  for (const file of next) {
+    if (chunk.length >= CHUNK_FILES || (chunk.length > 0 && queued >= CHUNK_BYTES)) break
+    chunk.push(file)
+    queued += file.content.kind === 'blob' ? file.content.sizeBytes : 0
+  }
+  const body = { files: chunk.map((file) => ({ item_id: item, filename: file.fileName, size_bytes: file.content.kind === 'blob' ? file.content.sizeBytes : 0 })) }
+  let answer
+  try {
+    answer = (await client.data('POST', '/upload-links', largeUploadLinks, { body })).value
+  } catch (error) {
+    // Only a 404 that says the route does not exist: a 404 for the items of the call is a real answer
+    if (error instanceof CliFailure && error.error.kind === 'api' && error.error.status === 404 && error.error.code === 'not_found' && error.error.message.startsWith('No such endpoint')) return false
+    throw error
+  }
+  for (const link of answer.links) {
+    const file = chunk[link.index]
+    if (file !== undefined) links.set(file, link)
+  }
+  for (const entry of answer.refused) {
+    const file = chunk[entry.index]
+    if (file !== undefined) links.set(file, { refused: entry.message })
+  }
+  return true
 }
 
 /**
@@ -349,17 +432,21 @@ export async function attachCommand(client: ApiClient, input: { item: string; fi
  * item. A refusal of the plan (the size of one file, storage) comes from the
  * first step, before any byte is sent.
  */
-async function attachOne(client: ApiClient, item: string, file: FileToAttach): Promise<Answer<Attached>> {
+async function attachOne(client: ApiClient, item: string, file: FileToAttach, made?: LargeUploadLink): Promise<Answer<Attached>> {
   switch (file.content.kind) {
     case 'bytes': {
       const body = { filename: file.fileName, mime_type: file.mimeType, content_base64: Buffer.from(file.content.bytes).toString('base64') }
       return client.data('POST', `/items/${path(item)}/attachments`, attached, { body })
     }
     case 'blob': {
-      const link = await client.data('POST', `/items/${path(item)}/upload-links`, largeUploadLink, { body: { filename: file.fileName, size_bytes: file.content.sizeBytes } })
-      if (link.value.finish_url === null) return fail({ kind: 'unexpected', message: 'Listspace answered without a link to finish a large upload. Update the CLI, or the server is older than it.' })
-      await client.putToStorage(link.value.upload_url, file.content.blob)
-      return client.finishUpload(link.value.finish_url, attached)
+      // A link made earlier in a chunk may be old by now (a slow upload ahead of it): ask for a fresh one instead
+      const stale = made !== undefined && made.expires_at !== null && Date.parse(made.expires_at) - Date.now() < STALE_MS
+      const link = made === undefined || stale
+        ? (await client.data('POST', `/items/${path(item)}/upload-links`, largeUploadLink, { body: { filename: file.fileName, size_bytes: file.content.sizeBytes } })).value
+        : made
+      if (link.finish_url === null) return fail({ kind: 'unexpected', message: 'Listspace answered without a link to finish a large upload. Update the CLI, or the server is older than it.' })
+      await client.putToStorage(link.upload_url, file.content.blob)
+      return client.finishUpload(link.finish_url, attached)
     }
     default: {
       const exhaustive: never = file.content

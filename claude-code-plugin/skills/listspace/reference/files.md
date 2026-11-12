@@ -25,7 +25,7 @@ With the MCP tools and a shell that can reach listspace.app, but no `listspace l
 2. Run its `command` with the file's path: `curl --fail-with-body --upload-file report.pdf '<upload_url>'`.
 3. The answer is the attachment and `sha256`. Compare it with `sha256sum report.pdf` (macOS: `shasum -a 256 report.pdf`).
 
-One link takes one file, once, within 10 minutes. A used or expired link answers 404: ask for a new one. Level 4 (Act) is checked when you ask and again when the file arrives.
+One link takes one file, once, within 10 minutes. The upload's answer says in `attachment.is_cover` whether the file became the item's cover, so there is no need to list the files afterwards. A used or expired link answers 404: ask for a new one. Level 4 (Act) is checked when you ask and again when the file arrives.
 
 In claude.ai, a 403 from curl that is not a JSON answer from Listspace means the sandbox's network filter blocks the site. Tell the user to add `listspace.app` under Settings > Capabilities > Create and edit files > Use the internet while making files (on) > Allowed websites > Manage > Add a website (for a file over 8 MB, also `*.r2.cloudflarestorage.com`), then try again. For a file up to 8 MB you can use `attach_file` instead, when writing it out as base64 is practical.
 
@@ -37,7 +37,21 @@ A file over 8 MB (up to the plan's size of one file, at most 4 GB):
 
 A file over 4 GB is added in the Listspace app, which sends it in parts.
 
-Several files: send them one after another, in the order they should show on the item (01, 02, 03), not all at once. A file is dated when it arrives, and the item lists its files by that time.
+Several files, for one item or many: one `get_upload_link` call with `files`, a list of up to 25 entries, each with `item_id`, `filename` and `size_bytes` (and optionally `mime_type` and `replaces_attachment_id`). Never one call per file. The answer has `links`, one per file with its `index` (its place in `files`) and the same `upload_url`, `command` and, for a file over 8 MB, `finish_command` as a single link, and `refused`: the files that got no link (no access to that item, storage full), with the reason. The others are not affected: fix the reason and ask again for those only. Every link works once, as above. Over REST it is `POST /v1/upload-links` with the same body: `201` when at least one file got a link (the others are in `refused`), and the status of the first refusal (`404`, `403`, `400`, `429`) when none did.
+
+Files over 8 MB hold room in storage: each `upload_url` must be started within 15 minutes of the answer, and at most 20 large files can wait at once. So ask for large files in small batches (about 5), right before you send them, not all at the start.
+
+The limit counts files and bytes, not calls: 200 upload links or 10 GB of files an hour per account. A call that would pass it makes no links and says when to come back: `Try again after 14:32 UTC (in 12 minutes)`, with `retry_after_seconds` and `retry_at` in the error (REST: the `Retry-After` header too). Wait that long instead of retrying at once.
+
+Send the files themselves one after another, in the order they should show on the item (01, 02, 03), not all at once. A file is dated when it arrives, and the item lists its files by that time.
+
+## The same picture or file in a second place
+
+Do not upload a file twice. For a file that is already on an item of the same board:
+
+- `copy_attachment` with `item_id` (gets the copy), `from_item_id` and `attachment_id` (from `list_attachments` of that item), and optionally `filename`. The server makes the copy: no upload link, nothing counted against the upload limit. It is a file of its own (changing or removing one does not touch the other), it counts against the plan's storage and gets its own virus check. Files up to 8 MB; a file held back by the virus scan cannot be copied. An item on another board is refused: attach the file there from disk. It reads one file at a time and about 50 MB a minute, so for dozens of files copy a few at a time and wait when the answer says `rate_limited`.
+- To show a picture inside an item's text (an overview with the screenshots of other items): write `![what it shows](attachment:ATTACHMENT_ID)` for a picture of the item itself, or `![what it shows](attachment:ITEM_ID/ATTACHMENT_ID)` for one of another item of the same board, in the `description` of `update_item`. Listspace stores a copy in that item's text, the same picture the app stores when the user pastes one, so it keeps showing and no link runs out. JPEG, PNG, GIF or WebP, up to 10 MB each, at most 25 new pictures per change, and it counts against the plan's storage. It needs level 4 or 5 (a picture is stored when the change is written, so below that, or with `inbox: true`, the call is refused and nothing waits in the Inbox). Not in `create_item`: create the item first, then update it. Never write a picture as base64 or as a link.
+- Reading an item gives its pictures as `![what it shows](picture:NAME)`. Keep those lines when you write the description again, or the pictures are removed (the description replaces the whole text). Writing `picture:NAME` back keeps the picture without copying it again (it must be a picture the item's text holds now). Each `attachment:` reference stores a new copy when it is written, so write the `picture:NAME` back instead of the `attachment:` reference once the picture is in the text.
 
 ## Other ways
 
@@ -47,18 +61,17 @@ Several files: send them one after another, in the order they should show on the
 - Another chat app without a shell and a file the user already has: ask the user to drop the file on the item in the Listspace app.
 - A tiny text file you wrote yourself: `attach_file` with base64 is fine.
 - Every attach answer has `sha256`, the SHA-256 of the stored bytes: compare it with your copy when it matters.
-- Every file is checked for viruses after it is added. The answer's `virus_scan` is `clean`, `checking` (other people can open it once the check is done, usually within a minute), `not_checked` (it could not be checked, for example a locked zip: only you can open it), `blocked` (a virus was found: nobody can open it) or `not_scanned_too_large` (over 250 MB, too large for the scan: everyone on the board can download it, and the app asks before each download). Tell the user when a file comes back `blocked` or `not_scanned_too_large`.
+- Every file is checked for viruses after it is added. The answer's `virus_scan` is `clean`, `checking` (other people can open it once the check is done, usually within a minute), `not_checked` (it could not be checked, for example a locked zip, or a file too complex for the scan to check fully whatever its size: only you can open it), `blocked` (a virus was found: nobody can open it) or `not_scanned_too_large` (over 250 MB, too large for the scan: everyone on the board can download it, and the app asks before each download). Tell the user when a file comes back `blocked` or `not_scanned_too_large`.
 - Later: chunked uploads for sandboxes that cannot reach listspace.app. Until then, use `attach_document` or ask the user to drop the file in the app.
 
-## Read a spreadsheet
+## Read a CSV file or look at a picture
 
-A budget, a price list or a content calendar on an item: `read_attachment` with `item_id` and `attachment_id` (from `list_attachments`) gives the file as text, each sheet as CSV. It reads .xlsx, .xlsm, .xls and .ods workbooks and CSV or TSV files.
+A price list or an export on an item: `read_attachment` with `item_id` and `attachment_id` (from `list_attachments`) gives a CSV or TSV file as text, one table as CSV.
 
-- `sheet_names` lists every sheet; `sheet` reads one sheet by name.
-- Each cell is the value as the sheet shows it. A formula gives the result the file saved; formulas and macros never run.
-- At most the first 1000 rows and 100 columns of each sheet, and 200000 characters in all. `truncated` says something was left out and `range` gives the full size of the sheet (such as `A1:F5432`). For the whole file, download it with its link from `list_attachments`.
-- Files up to 10 MB. A file that is still being checked for viruses opens only for whoever added it, and a blocked file never opens.
-- Other files (PDF, Word, images) are not read this way: open them with their link.
+- At most the first 1000 rows and 100 columns and 200000 characters; `truncated` says something was left out. For the whole file, download it with its link from `list_attachments`.
+- Files up to 10 MB, one at a time, and about 50 MB of files a minute. A file that is still being checked for viruses opens only for whoever added it, and a blocked file never opens.
+- A picture (PNG, JPEG, GIF or WebP, up to 3 MB and 8000 pixels on a side) comes back as the picture itself, beside a text part with its name, size, type and link. This also works for a picture in a comment: its id is in `images` of the comment (`list_comments`). A larger picture, or one whose content is not the type it says, is not shown; the text says so and gives the link.
+- Spreadsheets (.xlsx, .xlsm, .xls, .ods), SVG and AVIF pictures and every other kind of file (PDF, Word) are not read this way: the call is refused and the refusal carries the file link, valid for 10 minutes. Open or download the file with it. `sheet` is not used.
 
 ## A new version of a file
 

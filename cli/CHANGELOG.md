@@ -2,6 +2,14 @@
 
 One version runs through the CLI, the skill and the Claude Code plugin, so each entry covers all three.
 
+## 0.7.0
+
+- Upload links for several files in one call: `get_upload_link` takes `files`, up to 25 entries each with `item_id`, `filename` and `size_bytes`, and the REST API has `POST /v1/upload-links` for the same. `listspace attach` uses it when it sends two or more files over 8 MB: it asks for the links of a few files at a time, right before sending them: a file joins a chunk only while the bytes queued ahead of it stay under about 500 MB, since a link for a large file holds room in storage and its upload must start within 15 minutes. A link that has run out or runs out within a minute is replaced by a fresh one before its upload. The CLI sends the files that got a link, names the ones that did not, and goes back to one link a file on a server that does not have the route yet. Publish this CLI after the server (the functions) is deployed.
+- The upload limit counts files and bytes, not calls: 200 upload links or 10 GB an hour per account. A refusal says when to come back (`Try again after 14:32 UTC (in 12 minutes)`), with `retry_after_seconds` and `retry_at` in the error, and the CLI passes it on.
+- The answer to an upload says in `attachment.is_cover` whether the file became the item's cover.
+- The skill's file pages tell agents to send a batch in one call and to wait for the time the error names.
+- The skill's file pages and tool table cover `copy_attachment` (a file of another item of the same board, copied on the server, no upload) and pictures inside an item's text (`![alt](attachment:ITEM_ID/ATTACHMENT_ID)` in `update_item`, read back as `![alt](picture:NAME)`). Publish this after the server is deployed.
+
 ## 0.6.0
 
 - `listspace attach` takes files up to the plan's size of one file (Free 25 MB, Pro 2 GB, a team's boards 5 GB), at most 4 GB from the CLI. Up to 8 MB a file goes in the request as before; a larger one goes straight to Listspace's file storage: the CLI asks for an upload link with the file's size, sends the file from disk (it is never read into memory) and then finishes the upload. A file over the plan's size is refused before any byte is sent.
